@@ -159,7 +159,7 @@ class GeneratorModel:
                         # discriminator on those frames to get d_scale_preds, then run this
                         # again for the loss optimization.
                         if c.ADVERSARIAL:
-                            self.d_scale_preds.append(tf.placeholder(tf.float32, [None, 1]))
+                                self.d_scale_preds.append(tf.placeholder(tf.float32, [None, 1]))
 
                         ##
                         # Perform test calculation
