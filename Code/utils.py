@@ -115,7 +115,7 @@ def get_full_clips(num_clips, num_rec_out=1,train_or_val):
                         using the previously-generated frames as input. Default = 1.
 
     @return: An array of shape
-             [num_clips, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + num_rec_out))].
+             [num_clips, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (c.NUM_INPUT_CHANNEL * (c.HIST_LEN + num_rec_out))].
              A batch of frame sequences with values normalized in range [-1, 1].
     """
     clips = np.empty([num_clips,
