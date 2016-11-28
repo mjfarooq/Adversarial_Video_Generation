@@ -202,10 +202,10 @@ LRATE_D = 0.02
 # padding for convolutions in the discriminator model
 PADDING_D = 'VALID'
 # feature maps for each convolution of each scale network in the discriminator model
-SCALE_CONV_FMS_D = [[3, 64],
-                    [3, 64, 128, 128],
-                    [3, 128, 256, 256],
-                    [3, 128, 256, 512, 128]]
+SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 64],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 64, 128, 128],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 256],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 512, 128]]
 # kernel sizes for each convolution of each scale network in the discriminator model
 SCALE_KERNEL_SIZES_D = [[3],
                         [3, 3, 3],

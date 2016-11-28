@@ -124,12 +124,12 @@ class DiscriminatorModel:
             scale_net = self.scale_nets[scale_num]
 
             # resize gt_output_frames
-            scaled_gt_output_frames = np.empty([batch_size, scale_net.height, scale_net.width, NUM_INPUT_CHANNEL])
+            scaled_gt_output_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
             for i, img in enumerate(gt_output_frames):
                 # for skimage.transform.resize, images need to be in range [0, 1], so normalize to
                 # [0, 1] before resize and back to [-1, 1] after
                 sknorm_img = (img / 2) + 0.5
-                resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, NUM_INPUT_CHANNEL])
+                resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
                 scaled_gt_output_frames[i] = (resized_frame - 0.5) * 2
 
             # combine with resized gt_output_frames to get inputs for prediction
