@@ -59,14 +59,14 @@ class GeneratorModel:
 
             with tf.name_scope('data'):
                 self.input_frames_train = tf.placeholder(
-                    tf.float32, shape=[None, self.height_train, self.width_train, 3 * c.HIST_LEN])
+                    tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL * c.HIST_LEN])
                 self.gt_frames_train = tf.placeholder(
-                    tf.float32, shape=[None, self.height_train, self.width_train, 3])
+                    tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL])
 
                 self.input_frames_test = tf.placeholder(
-                    tf.float32, shape=[None, self.height_test, self.width_test, 3 * c.HIST_LEN])
+                    tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL * c.HIST_LEN])
                 self.gt_frames_test = tf.placeholder(
-                    tf.float32, shape=[None, self.height_test, self.width_test, 3])
+                    tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL])
 
                 # use variable batch_size for more flexibility
                 self.batch_size_train = tf.shape(self.input_frames_train)[0]
@@ -238,7 +238,7 @@ class GeneratorModel:
         Runs a training step using the global loss on each of the scale networks.
 
         @param batch: An array of shape
-                      [c.BATCH_SIZE x self.height x self.width x (3 * (c.HIST_LEN + 1))].
+                      [c.BATCH_SIZE x self.height x self.width x (c.NUM_INPUT_CHANNEL * (c.HIST_LEN + 1))].
                       The input and output frames, concatenated along the channel axis (index 3).
         @param discriminator: The discriminator model. Default = None, if not adversarial.
 
@@ -308,12 +308,12 @@ class GeneratorModel:
                 scale_width = int(self.width_train * scale_factor)
 
                 # resize gt_output_frames for scale and append to scale_gts_train
-                scaled_gt_frames = np.empty([c.BATCH_SIZE, scale_height, scale_width, 3])
+                scaled_gt_frames = np.empty([c.BATCH_SIZE, scale_height, scale_width, c.NUM_INPUT_CHANNEL])
                 for i, img in enumerate(gt_frames):
                     # for skimage.transform.resize, images need to be in range [0, 1], so normalize
                     # to [0, 1] before resize and back to [-1, 1] after
                     sknorm_img = (img / 2) + 0.5
-                    resized_frame = resize(sknorm_img, [scale_height, scale_width, 3])
+                    resized_frame = resize(sknorm_img, [scale_height, scale_width, c.NUM_INPUT_CHANNEL])
                     scaled_gt_frames[i] = (resized_frame - 0.5) * 2
                 scale_gts.append(scaled_gt_frames)
 
@@ -324,7 +324,7 @@ class GeneratorModel:
 
                 # save input images
                 for frame_num in xrange(c.HIST_LEN):
-                    img = input_frames[pred_num, :, :, (frame_num * 3):((frame_num + 1) * 3)]
+                    img = input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)]
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
 
                 # save preds and gts at each scale
