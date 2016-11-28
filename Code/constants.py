@@ -68,7 +68,7 @@ def set_test_dir(directory):
     FULL_HEIGHT, FULL_WIDTH = get_test_frame_dims()
 
 # root directory for all data
-DATA_DIR = get_dir('../Data/')
+DATA_DIR = get_dir('../../Data/')
 # directory of unprocessed training frames
 TRAIN_DIR = os.path.join(DATA_DIR, 'Ms_Pacman/Train/')
 # directory of unprocessed test frames
@@ -83,10 +83,11 @@ MOVEMENT_THRESHOLD = 100
 NUM_CLIPS = len(glob(TRAIN_DIR_CLIPS + '*'))
 
 # the height and width of the full frames to test on. Set in avg_runner.py or process_data.py main.
-FULL_HEIGHT = 210
-FULL_WIDTH = 160
+FULL_HEIGHT = 18
+FULL_WIDTH = 20
 # the height and width of the patches to train on
-TRAIN_HEIGHT = TRAIN_WIDTH = 32
+TRAIN_HEIGHT = 18
+TRAIN_WIDTH = 20
 
 ##
 # Output
@@ -127,6 +128,11 @@ SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, 'Summaries/', SAVE_NAME))
 IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, 'Images/', SAVE_NAME))
 
 
+# data statistic
+DATA_MAX = 45
+DATA_MIN = -30
+DATA_SCALE_FACTOR = 10000
+
 STATS_FREQ      = 10     # how often to print loss/train error stats, in # steps
 SUMMARY_FREQ    = 100    # how often to save the summaries, in # steps
 IMG_SAVE_FREQ   = 1000   # how often to save generated images, in # steps
@@ -142,7 +148,12 @@ ADVERSARIAL = True
 # the training minibatch size
 BATCH_SIZE = 8
 # the number of history frames to give as input to the network
-HIST_LEN = 4
+HIST_LEN = 20
+# the number of predicted frames to get output of the network
+PRED_LEN=20
+# the channel number of input
+NUM_INPUT_CHANNEL=1
+
 
 ##
 # Loss parameters
@@ -169,10 +180,10 @@ LRATE_G = 0.00004  # Value in paper is 0.04
 PADDING_G = 'SAME'
 # feature maps for each convolution of each scale network in the generator model
 # e.g SCALE_FMS_G[1][2] is the input of the 3rd convolution in the 2nd scale network.
-SCALE_FMS_G = [[3 * HIST_LEN, 128, 256, 128, 3],
-               [3 * (HIST_LEN + 1), 128, 256, 128, 3],
-               [3 * (HIST_LEN + 1), 128, 256, 512, 256, 128, 3],
-               [3 * (HIST_LEN + 1), 128, 256, 512, 256, 128, 3]]
+SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 128, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
 # kernel sizes for each convolution of each scale network in the generator model
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],

@@ -6,12 +6,27 @@ import os
 
 import constants as c
 from tfutils import log10
+import h5py
 
 ##
 # Data
 ##
 
 def normalize_frames(frames):
+    """
+    Convert frames from int8 [0, 255] to float32 [-1, 1].
+
+    @param frames: A numpy array. The frames to be converted.
+
+    @return: The normalized frames.
+    """
+    new_frames = frames.astype(np.float32)
+    new_frames /= (255 / 2)
+    new_frames -= 1
+
+    return new_frames
+
+def normalize_clips(clips):
     """
     Convert frames from int8 [0, 255] to float32 [-1, 1].
 
@@ -54,7 +69,43 @@ def clip_l2_diff(clip):
 
     return diff
 
-def get_full_clips(data_dir, num_clips, num_rec_out=1):
+# def get_full_clips(data_dir, num_clips, num_rec_out=1):
+#     """
+#     Loads a batch of random clips from the unprocessed train or test data.
+
+#     @param data_dir: The directory of the data to read. Should be either c.TRAIN_DIR or c.TEST_DIR.
+#     @param num_clips: The number of clips to read.
+#     @param num_rec_out: The number of outputs to predict. Outputs > 1 are computed recursively,
+#                         using the previously-generated frames as input. Default = 1.
+
+#     @return: An array of shape
+#              [num_clips, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + num_rec_out))].
+#              A batch of frame sequences with values normalized in range [-1, 1].
+#     """
+#     clips = np.empty([num_clips,
+#                       c.FULL_HEIGHT,
+#                       c.FULL_WIDTH,
+#                       (3 * (c.HIST_LEN + num_rec_out))])
+
+#     # get num_clips random episodes
+#     ep_dirs = np.random.choice(glob(os.path.join(data_dir, '*')), num_clips)
+
+#     # get a random clip of length HIST_LEN + num_rec_out from each episode
+#     for clip_num, ep_dir in enumerate(ep_dirs):
+#         ep_frame_paths = sorted(glob(os.path.join(ep_dir, '*')))
+#         start_index = np.random.choice(len(ep_frame_paths) - (c.HIST_LEN + num_rec_out - 1))
+#         clip_frame_paths = ep_frame_paths[start_index:start_index + (c.HIST_LEN + num_rec_out)]
+
+#         # read in frames
+#         for frame_num, frame_path in enumerate(clip_frame_paths):
+#             frame = imread(frame_path, mode='RGB')
+#             norm_frame = normalize_frames(frame)
+
+#             clips[clip_num, :, :, frame_num * 3:(frame_num + 1) * 3] = norm_frame
+
+#     return clips
+
+def get_full_clips(num_clips, num_rec_out=1,train_or_val):
     """
     Loads a batch of random clips from the unprocessed train or test data.
 
@@ -70,25 +121,19 @@ def get_full_clips(data_dir, num_clips, num_rec_out=1):
     clips = np.empty([num_clips,
                       c.FULL_HEIGHT,
                       c.FULL_WIDTH,
-                      (3 * (c.HIST_LEN + num_rec_out))])
+                      (c.NUM_INPUT_CHANNEL * (c.HIST_LEN + num_rec_out))])
 
     # get num_clips random episodes
-    ep_dirs = np.random.choice(glob(os.path.join(data_dir, '*')), num_clips)
+    #ep_dirs = np.random.choice(glob(os.path.join(data_dir, '*')), num_clips)
 
-    # get a random clip of length HIST_LEN + num_rec_out from each episode
-    for clip_num, ep_dir in enumerate(ep_dirs):
-        ep_frame_paths = sorted(glob(os.path.join(ep_dir, '*')))
-        start_index = np.random.choice(len(ep_frame_paths) - (c.HIST_LEN + num_rec_out - 1))
-        clip_frame_paths = ep_frame_paths[start_index:start_index + (c.HIST_LEN + num_rec_out)]
-
-        # read in frames
-        for frame_num, frame_path in enumerate(clip_frame_paths):
-            frame = imread(frame_path, mode='RGB')
-            norm_frame = normalize_frames(frame)
-
-            clips[clip_num, :, :, frame_num * 3:(frame_num + 1) * 3] = norm_frame
-
+    with h5py.File(c.DATA_DIR + 'ECOG_40_41.h5', 'r') as h5file:
+        for i in xrange(num_clips):
+            start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
+            clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :])
+            clips[i] = clip.transpose().reshape(c.TRAIN_WIDTH,c.TRAIN_HEIGHT,c.HIST_LEN + num_rec_out)
+        clips = normalize_clips(clips)
     return clips
+
 
 def process_clip():
     """
@@ -113,22 +158,41 @@ def process_clip():
 
     return cropped_clip
 
-def get_train_batch():
+# def get_train_batch():
+#     """
+#     Loads c.BATCH_SIZE clips from the database of preprocessed training clips.
+
+#     @return: An array of shape
+#             [c.BATCH_SIZE, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + 1))].
+#     """
+#     clips = np.empty([c.BATCH_SIZE, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + 1))],
+#                      dtype=np.float32)
+#     for i in xrange(c.BATCH_SIZE):
+#         path = c.TRAIN_DIR_CLIPS + str(np.random.choice(c.NUM_CLIPS)) + '.npz'
+#         clip = np.load(path)['arr_0']
+
+#         clips[i] = clip
+
+#     return clips
+
+def get_train_batch(train_batch_size, num_rec_out=1):
     """
     Loads c.BATCH_SIZE clips from the database of preprocessed training clips.
 
     @return: An array of shape
             [c.BATCH_SIZE, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + 1))].
     """
-    clips = np.empty([c.BATCH_SIZE, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (3 * (c.HIST_LEN + 1))],
-                     dtype=np.float32)
-    for i in xrange(c.BATCH_SIZE):
-        path = c.TRAIN_DIR_CLIPS + str(np.random.choice(c.NUM_CLIPS)) + '.npz'
-        clip = np.load(path)['arr_0']
+    # clips = np.empty([c.BATCH_SIZE, c.TRAIN_HEIGHT, c.TRAIN_WIDTH, (c.NUM_INPUT_CHANNEL * (c.HIST_LEN + 1))],
+    #                  dtype=np.float32)
+    # for i in xrange(c.BATCH_SIZE):
+    #     #path = c.TRAIN_DIR_CLIPS + str(np.random.choice(c.NUM_CLIPS)) + '.npz'
+    #     start_index = np.random.choice(h5file['train'].shape[0] - (c.HIST_LEN + num_rec_out - 1))
+    #     clip  = np.array(h5file['train'][start_index : start_index + (c.HIST_LEN + num_rec_out), :])
+    #     #clip = np.load(path)['arr_0']
+    #     clips[i] = clip.transpose().reshape(c.TRAIN_WIDTH,c.TRAIN_HEIGHT,c.HIST_LEN + num_rec_out)
 
-        clips[i] = clip
-
-    return clips
+    # return clips
+    return get_full_clips(train_batch_size, num_rec_out=num_rec_out,train_or_val='train')
 
 
 def get_test_batch(test_batch_size, num_rec_out=1):
@@ -143,7 +207,7 @@ def get_test_batch(test_batch_size, num_rec_out=1):
              [test_batch_size, c.TEST_HEIGHT, c.TEST_WIDTH, (3 * (c.HIST_LEN + num_rec_out))].
              A batch of frame sequences with values normalized in range [-1, 1].
     """
-    return get_full_clips(c.TEST_DIR, test_batch_size, num_rec_out=num_rec_out)
+    return get_full_clips(test_batch_size, num_rec_out=num_rec_out,train_or_val='valid')
 
 
 ##

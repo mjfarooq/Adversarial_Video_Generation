@@ -248,8 +248,8 @@ class GeneratorModel:
         # Split into inputs and outputs
         ##
 
-        input_frames = batch[:, :, :, :-3]
-        gt_frames = batch[:, :, :, -3:]
+        input_frames = batch[:, :, :, :-c.NUM_INPUT_CHANNEL*c.PRED_LEN]
+        gt_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         ##
         # Train

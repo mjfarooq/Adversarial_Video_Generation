@@ -63,12 +63,12 @@ class AVGRunner:
         while True:
             if c.ADVERSARIAL:
                 # update discriminator
-                batch = get_train_batch()
+                batch = get_train_batch(c.BATCH_SIZE,c.PRED_LEN)
                 print 'Training discriminator...'
                 self.d_model.train_step(batch, self.g_model)
 
             # update generator
-            batch = get_train_batch()
+            batch = get_train_batch(c.BATCH_SIZE,c.PRED_LEN)
             print 'Training generator...'
             self.global_step = self.g_model.train_step(
                 batch, discriminator=(self.d_model if c.ADVERSARIAL else None))
