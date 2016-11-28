@@ -161,8 +161,13 @@ class DiscriminatorModel:
         # Split into inputs and outputs
         ##
 
-        input_frames = batch[:, :, :, :-3]
-        gt_output_frames = batch[:, :, :, -3:]
+		if c.CONSIDER_PAST_FRAMES == 0
+			input_frames = batch[:, :, :, :-c.NUM_INPUT_CHANNEL*c.PRED_LEN]
+			gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
+		
+		if c.CONSIDER_PAST_FRAMES == 1
+			input_frames = batch[:, :, :, :]
+			gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         ##
         # Train
