@@ -42,12 +42,12 @@ def clear_dir(directory):
         except Exception as e:
             print(e)
 
-def get_test_frame_dims():
-    img_path = glob(os.path.join(TEST_DIR, '*/*'))[0]
-    img = imread(img_path, mode='RGB')
-    shape = np.shape(img)
-
-    return shape[0], shape[1]
+#def get_test_frame_dims():
+#    img_path = glob(os.path.join(TEST_DIR, '*/*'))[0]
+#    img = imread(img_path, mode='RGB')
+#    shape = np.shape(img)
+#
+#    return shape[0], shape[1]
 
 def get_train_frame_dims():
     img_path = glob(os.path.join(TRAIN_DIR, '*/*'))[0]
@@ -65,7 +65,7 @@ def set_test_dir(directory):
     global TEST_DIR, FULL_HEIGHT, FULL_WIDTH
 
     TEST_DIR = directory
-    FULL_HEIGHT, FULL_WIDTH = get_test_frame_dims()
+    #FULL_HEIGHT, FULL_WIDTH = get_test_frame_dims()
 
 # root directory for all data
 DATA_DIR = get_dir('../../Data/')
@@ -156,7 +156,7 @@ BATCH_SIZE = 8
 # the number of history frames to give as input to the network
 HIST_LEN = 20
 # the number of predicted frames to get output of the network
-PRED_LEN=20
+PRED_LEN=1
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 0
 

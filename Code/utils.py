@@ -115,7 +115,7 @@ def clip_l2_diff(clip):
 
 #     return clips
 
-def get_full_clips(num_clips, num_rec_out=1,train_or_val):
+def get_full_clips(num_clips,train_or_val,num_rec_out=1):
     """
     Loads a batch of random clips from the unprocessed train or test data.
 
@@ -202,7 +202,7 @@ def get_train_batch(train_batch_size, num_rec_out=1):
     #     clips[i] = clip.transpose().reshape(c.TRAIN_WIDTH,c.TRAIN_HEIGHT,c.HIST_LEN + num_rec_out)
 
     # return clips
-    return get_full_clips(train_batch_size, num_rec_out=num_rec_out,train_or_val='train')
+    return get_full_clips(train_batch_size,train_or_val='train', num_rec_out=num_rec_out)
 
 
 def get_test_batch(test_batch_size, num_rec_out=1):
@@ -217,7 +217,7 @@ def get_test_batch(test_batch_size, num_rec_out=1):
              [test_batch_size, c.TEST_HEIGHT, c.TEST_WIDTH, (3 * (c.HIST_LEN + num_rec_out))].
              A batch of frame sequences with values normalized in range [-1, 1].
     """
-    return get_full_clips(test_batch_size, num_rec_out=num_rec_out,train_or_val='valid')
+    return get_full_clips(test_batch_size,train_or_val='valid', num_rec_out=num_rec_out)
 
 
 ##

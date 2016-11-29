@@ -57,6 +57,8 @@ class DiscriminatorModel:
             for scale_num in xrange(self.num_scale_nets):
                 with tf.name_scope('scale_net_' + str(scale_num)):
                     scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
+                    import pdb; pdb.set_trace()  # breakpoint 00946078 //
+                    
                     self.scale_nets.append(DScaleModel(scale_num,
                                                        int(self.height * scale_factor),
                                                        int(self.width * scale_factor),
@@ -160,14 +162,13 @@ class DiscriminatorModel:
         ##
         # Split into inputs and outputs
         ##
+        if c.CONSIDER_PAST_FRAMES == 0:
+            input_frames = batch[:, :, :, :-c.NUM_INPUT_CHANNEL*c.PRED_LEN]
+            gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
-		if c.CONSIDER_PAST_FRAMES == 0
-			input_frames = batch[:, :, :, :-c.NUM_INPUT_CHANNEL*c.PRED_LEN]
-			gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
-		
-		if c.CONSIDER_PAST_FRAMES == 1
-			input_frames = batch[:, :, :, :]
-			gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
+        if c.CONSIDER_PAST_FRAMES == 1:
+            input_frames = batch[:, :, :, :]
+            gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         ##
         # Resize inputs and gt_frames to pseudo_size
