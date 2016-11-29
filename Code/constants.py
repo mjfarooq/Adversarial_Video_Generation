@@ -88,6 +88,11 @@ FULL_WIDTH = 20
 # the height and width of the patches to train on
 TRAIN_HEIGHT = 18
 TRAIN_WIDTH = 20
+# the upsampled heigt and width so that input to the network fits the original network demension setup
+PSEUDO_HEIGHT = 32
+PSEUDO_WIDTH = 32
+# the channel number of input
+NUM_INPUT_CHANNEL=1
 
 ##
 # Output
@@ -116,7 +121,7 @@ def clear_save_name():
 
 
 # root directory for all saved content
-SAVE_DIR = get_dir('../Save/')
+SAVE_DIR = get_dir('../../Save/')
 
 # inner directory to differentiate between runs
 SAVE_NAME = 'Default/'
@@ -133,6 +138,7 @@ DATA_MAX = 45
 DATA_MIN = -30
 DATA_SCALE_FACTOR = 10000
 
+# traing process control params
 STATS_FREQ      = 10     # how often to print loss/train error stats, in # steps
 SUMMARY_FREQ    = 100    # how often to save the summaries, in # steps
 IMG_SAVE_FREQ   = 1000   # how often to save generated images, in # steps
@@ -151,8 +157,6 @@ BATCH_SIZE = 8
 HIST_LEN = 20
 # the number of predicted frames to get output of the network
 PRED_LEN=20
-# the channel number of input
-NUM_INPUT_CHANNEL=1
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 0
 

@@ -26,20 +26,6 @@ def normalize_frames(frames):
 
     return new_frames
 
-def normalize_clips(clips):
-    """
-    Convert frames from int8 [0, 255] to float32 [-1, 1].
-
-    @param frames: A numpy array. The frames to be converted.
-
-    @return: The normalized frames.
-    """
-    new_frames = frames.astype(np.float32)
-    new_frames /= (255 / 2)
-    new_frames -= 1
-
-    return new_frames
-
 def denormalize_frames(frames):
     """
     Performs the inverse operation of normalize_frames.
@@ -54,6 +40,30 @@ def denormalize_frames(frames):
     new_frames = new_frames.astype(np.uint8)
 
     return new_frames
+
+def normalize_clips(clips):
+    """
+    Convert frames from int8 [0, 255] to float32 [-1, 1].
+
+    @param frames: A numpy array. The frames to be converted.
+
+    @return: The normalized frames.
+    """
+    new_clips = clips.astype(np.float32)
+    new_clips = (new_clips * c.DATA_SCALE_FACTOR - c.DATA_MIN) / (c.DATA_MAX-c.DATA_MIN) * 2 - 1
+    new_clips = new_clips.clip(-1,1)
+    return new_clips
+
+def denormalize_clips(clips):
+    """
+    Convert frames from int8 [0, 255] to float32 [-1, 1].
+
+    @param frames: A numpy array. The frames to be converted.
+
+    @return: The normalized frames.
+    """
+    new_clips = ((clips + 1)/2 * (c.DATA_MAX-c.DATA_MIN) + c.DATA_MIN) / c.DATA_SCALE_FACTOR
+    return new_clips
 
 def clip_l2_diff(clip):
     """

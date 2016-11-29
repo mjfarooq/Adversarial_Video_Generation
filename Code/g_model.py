@@ -68,6 +68,12 @@ class GeneratorModel:
                 self.gt_frames_test = tf.placeholder(
                     tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL])
 
+                # resize input to psedu_size
+                self.input_frames_train_pseudo = tf.image.resize_images(input_frames_train,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+                self.gt_frames_train_pseudo = tf.image.resize_images(gt_frames_train,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+                self.input_frames_test_pseudo = tf.image.resize_images(input_frames_test,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+                self.gt_frames_test_pseudo = tf.image.resize_images(gt_frames_test,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+
                 # use variable batch_size for more flexibility
                 self.batch_size_train = tf.shape(self.input_frames_train)[0]
                 self.batch_size_test = tf.shape(self.input_frames_test)[0]
@@ -132,7 +138,6 @@ class GeneratorModel:
                                         preds = tf.nn.tanh(preds + bs[i])
                                     else:
                                         preds = tf.nn.relu(preds + bs[i])
-
                             return preds, scale_gts
 
                         ##
@@ -147,10 +152,10 @@ class GeneratorModel:
                             last_scale_pred_train = None
 
                         # calculate
-                        train_preds, train_gts = calculate(self.height_train,
-                                                           self.width_train,
-                                                           self.input_frames_train,
-                                                           self.gt_frames_train,
+                        train_preds, train_gts = calculate(c.PSEDO_HEIGHT,
+                                                           c.PSEDO_WIDTH,
+                                                           self.input_frames_train_pseudo,
+                                                           self.gt_frames_train_pseudo,
                                                            last_scale_pred_train)
                         self.scale_preds_train.append(train_preds)
                         self.scale_gts_train.append(train_gts)
@@ -173,10 +178,10 @@ class GeneratorModel:
                             last_scale_pred_test = None
 
                         # calculate
-                        test_preds, test_gts = calculate(self.height_test,
-                                                         self.width_test,
-                                                         self.input_frames_test,
-                                                         self.gt_frames_test,
+                        test_preds, test_gts = calculate(c.PSEDO_HEIGHT,
+                                                         c.PSEDO_WIDTH,
+                                                         self.input_frames_test_pseudo,
+                                                         self.gt_frames_test_pseudo,
                                                          last_scale_pred_test)
                         self.scale_preds_test.append(test_preds)
                         self.scale_gts_test.append(test_gts)

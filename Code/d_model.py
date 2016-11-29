@@ -170,6 +170,12 @@ class DiscriminatorModel:
 			gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         ##
+        # Resize inputs and gt_frames to pseudo_size
+        ##
+        input_frames = tf.images.resize_images(input_frames,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+        gt_output_frames = tf.images.resize_images(gt_output_frames,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+
+        ##
         # Train
         ##
 
