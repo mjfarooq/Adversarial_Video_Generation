@@ -114,7 +114,6 @@ class DScaleModel:
                 with tf.name_scope('convolutions'):
                     for i in xrange(len(conv_ws)):
                         # Convolve layer and activate with ReLU
-                        import pdb; pdb.set_trace()  # breakpoint 41184949 //
                         
                         preds = tf.nn.conv2d(
                             last_input, conv_ws[i], [1, 1, 1, 1], padding=c.PADDING_D)

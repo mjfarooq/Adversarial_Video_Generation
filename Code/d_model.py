@@ -57,8 +57,7 @@ class DiscriminatorModel:
             for scale_num in xrange(self.num_scale_nets):
                 with tf.name_scope('scale_net_' + str(scale_num)):
                     scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
-                    import pdb; pdb.set_trace()  # breakpoint 00946078 //
-                    
+
                     self.scale_nets.append(DScaleModel(scale_num,
                                                        int(self.height * scale_factor),
                                                        int(self.width * scale_factor),
@@ -109,6 +108,8 @@ class DiscriminatorModel:
                  predictions.
         """
         feed_dict = {}
+        import pdb; pdb.set_trace()  # breakpoint 5d38b2af //
+        
         batch_size = np.shape(gt_output_frames)[0]
 
         ##
@@ -173,8 +174,8 @@ class DiscriminatorModel:
         ##
         # Resize inputs and gt_frames to pseudo_size
         ##
-        input_frames = tf.images.resize_images(input_frames,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
-        gt_output_frames = tf.images.resize_images(gt_output_frames,[c.PSEDO_HEIGHT,c.PSEDO_WIDTH])
+        input_frames = tf.image.resize_images(input_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+        gt_output_frames = tf.image.resize_images(gt_output_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
 
         ##
         # Train

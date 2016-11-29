@@ -140,7 +140,8 @@ def get_full_clips(num_clips,train_or_val,num_rec_out=1):
         for i in xrange(num_clips):
             start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
             clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :])
-            clips[i] = clip.transpose().reshape(c.TRAIN_WIDTH,c.TRAIN_HEIGHT,c.HIST_LEN + num_rec_out)
+
+            clips[i] = clip.transpose().reshape(c.TRAIN_HEIGHT,c.TRAIN_WIDTH,c.HIST_LEN + num_rec_out)
         clips = normalize_clips(clips)
     return clips
 
@@ -242,6 +243,7 @@ def psnr_error(gen_frames, gt_frames):
     """
     shape = tf.shape(gen_frames)
     num_pixels = tf.to_float(shape[1] * shape[2] * shape[3])
+
     square_diff = tf.square(gt_frames - gen_frames)
 
     batch_errors = 10 * log10(1 / ((1 / num_pixels) * tf.reduce_sum(square_diff, [1, 2, 3])))
@@ -265,7 +267,7 @@ def sharp_diff_error(gen_frames, gt_frames):
     # gradient difference
     # create filters [-1, 1] and [[1],[-1]] for diffing to the left and down respectively.
     # TODO: Could this be simplified with one filter [[-1, 2], [0, -1]]?
-    pos = tf.constant(np.identity(3), dtype=tf.float32)
+    pos = tf.constant(np.identity(c.NUM_INPUT_CHANNEL), dtype=tf.float32)
     neg = -1 * pos
     filter_x = tf.expand_dims(tf.pack([neg, pos]), 0)  # [-1, 1]
     filter_y = tf.pack([tf.expand_dims(pos, 0), tf.expand_dims(neg, 0)])  # [[1],[-1]]

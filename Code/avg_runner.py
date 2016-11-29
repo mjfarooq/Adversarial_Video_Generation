@@ -31,8 +31,10 @@ class AVGRunner:
             print 'Init discriminator...'
             self.d_model = DiscriminatorModel(self.sess,
                                               self.summary_writer,
-                                              c.TRAIN_HEIGHT,
-                                              c.TRAIN_WIDTH,
+                                              #c.TRAIN_HEIGHT,
+                                              #c.TRAIN_WIDTH,
+                                              c.PSEUDO_HEIGHT,
+                                              c.PSEUDO_WIDTH,
                                               c.SCALE_CONV_FMS_D,
                                               c.SCALE_KERNEL_SIZES_D,
                                               c.SCALE_FC_LAYER_SIZES_D)
@@ -63,6 +65,7 @@ class AVGRunner:
         while True:
             if c.ADVERSARIAL:
                 # update discriminator
+                
                 batch = get_train_batch(c.BATCH_SIZE,c.PRED_LEN)
                 print 'Training discriminator...'
                 self.d_model.train_step(batch, self.g_model)
