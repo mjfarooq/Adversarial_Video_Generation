@@ -152,8 +152,8 @@ class GeneratorModel:
                             last_scale_pred_train = None
 
                         # calculate
-                        train_preds, train_gts = calculate(self.height,
-                                                           self.width,
+                        train_preds, train_gts = calculate(self.height_train,
+                                                           self.width_train,
                                                            self.input_frames_train,
                                                            self.gt_frames_train,
                                                            last_scale_pred_train)
@@ -178,8 +178,8 @@ class GeneratorModel:
                             last_scale_pred_test = None
 
                         # calculate
-                        test_preds, test_gts = calculate(self.height,
-                                                         self.width,
+                        test_preds, test_gts = calculate(self.height_train,
+                                                         self.width_train,
                                                          self.input_frames_test,
                                                          self.gt_frames_test,
                                                          last_scale_pred_test)
@@ -328,8 +328,10 @@ class GeneratorModel:
                                                   str(pred_num)))
 
                 # save input images
+                import pdb; pdb.set_trace()  # breakpoint 54b62d41 //
+
                 for frame_num in xrange(c.HIST_LEN):
-                    img = input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)]
+                    img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
 
                 # save preds and gts at each scale
