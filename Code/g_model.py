@@ -328,7 +328,6 @@ class GeneratorModel:
                                                   str(pred_num)))
 
                 # save input images
-              
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
@@ -336,10 +335,10 @@ class GeneratorModel:
                 # save preds and gts at each scale
                 # noinspection PyUnboundLocalVariable
                 for scale_num, scale_pred in enumerate(scale_preds):
-                    gen_img = scale_pred[pred_num]
+                    gen_img = np.squeeze(scale_pred[pred_num])
 
                     path = os.path.join(pred_dir, 'scale' + str(scale_num))
-                    gt_img = scale_gts[scale_num][pred_num]
+                    gt_img = np.squeeze(scale_gts[scale_num][pred_num])
 
                     imsave(path + '_gen.png', gen_img)
                     imsave(path + '_gt.png', gt_img)
@@ -422,13 +421,13 @@ class GeneratorModel:
 
                 # save input images
                 for frame_num in xrange(c.HIST_LEN):
-                    img = input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)]
+                    img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
 
                 # save recursive outputs
                 for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
-                    gen_img = rec_preds[rec_num][pred_num]
-                    gt_img = gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)]
+                    gen_img = np.squeeze(rec_preds[rec_num][pred_num])
+                    gt_img = np.squeeze(gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
                     imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
                     imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)
 

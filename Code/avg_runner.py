@@ -50,7 +50,7 @@ class AVGRunner:
                                       c.SCALE_KERNEL_SIZES_G)
 
         print 'Init variables...'
-        self.saver = tf.train.Saver(keep_checkpoint_every_n_hours=2)
+        self.saver = tf.train.Saver(keep_checkpoint_every_n_hours=2,write_version=tf.train.SaverDef.V2)
         self.sess.run(tf.initialize_all_variables())
 
         # if load path specified, load a saved model
