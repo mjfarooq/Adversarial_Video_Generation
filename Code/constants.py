@@ -83,14 +83,17 @@ MOVEMENT_THRESHOLD = 100
 NUM_CLIPS = len(glob(TRAIN_DIR_CLIPS + '*'))
 
 # the height and width of the full frames to test on. Set in avg_runner.py or process_data.py main.
-FULL_HEIGHT = 18
-FULL_WIDTH = 20
+FULL_HEIGHT = 32
+FULL_WIDTH = 32
 # the height and width of the patches to train on
-TRAIN_HEIGHT = 18
-TRAIN_WIDTH = 20
+TRAIN_HEIGHT = 32
+TRAIN_WIDTH = 32
 # the upsampled heigt and width so that input to the network fits the original network demension setup
 PSEUDO_HEIGHT = 32
 PSEUDO_WIDTH = 32
+# original data size. For preparing data perparing pe
+TRAIN_HEIGHT_RAW = 18
+TRAIN_WIDTH_RAW =20
 # the channel number of input
 NUM_INPUT_CHANNEL=1
 

@@ -139,7 +139,7 @@ def get_full_clips(num_clips,train_or_val,num_rec_out=1):
     with h5py.File(c.DATA_DIR + 'ECOG_40_41.h5', 'r') as h5file:
         for i in xrange(num_clips):
             start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
-            clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :])
+            clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :],dtype='float32')
 
             clips[i] = clip.transpose().reshape(c.TRAIN_HEIGHT,c.TRAIN_WIDTH,c.HIST_LEN + num_rec_out)
         clips = normalize_clips(clips)

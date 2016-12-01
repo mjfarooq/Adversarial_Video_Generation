@@ -68,11 +68,11 @@ class GeneratorModel:
                 self.gt_frames_test = tf.placeholder(
                     tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL])
 
-                # resize input to psedu_size
-                self.input_frames_train_pseudo = tf.image.resize_images(self.input_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
-                self.gt_frames_train_pseudo = tf.image.resize_images(self.gt_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
-                self.input_frames_test_pseudo = tf.image.resize_images(self.input_frames_test,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
-                self.gt_frames_test_pseudo = tf.image.resize_images(self.gt_frames_test,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+                # # resize input to psedu_size
+                # self.input_frames_train = tf.image.resize_images(self.input_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+                # self.gt_frames_train = tf.image.resize_images(self.gt_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+                # self.input_frames_test = tf.image.resize_images(self.input_frames_test,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+                # self.gt_frames_test = tf.image.resize_images(self.gt_frames_test,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
 
                 # use variable batch_size for more flexibility
                 self.batch_size_train = tf.shape(self.input_frames_train)[0]
@@ -152,10 +152,10 @@ class GeneratorModel:
                             last_scale_pred_train = None
 
                         # calculate
-                        train_preds, train_gts = calculate(c.PSEUDO_HEIGHT,
-                                                           c.PSEUDO_WIDTH,
-                                                           self.input_frames_train_pseudo,
-                                                           self.gt_frames_train_pseudo,
+                        train_preds, train_gts = calculate(self.height,
+                                                           self.width,
+                                                           self.input_frames_train,
+                                                           self.gt_frames_train,
                                                            last_scale_pred_train)
                         self.scale_preds_train.append(train_preds)
                         self.scale_gts_train.append(train_gts)
@@ -178,10 +178,10 @@ class GeneratorModel:
                             last_scale_pred_test = None
 
                         # calculate
-                        test_preds, test_gts = calculate(c.PSEUDO_HEIGHT,
-                                                         c.PSEUDO_WIDTH,
-                                                         self.input_frames_test_pseudo,
-                                                         self.gt_frames_test_pseudo,
+                        test_preds, test_gts = calculate(self.height,
+                                                         self.width,
+                                                         self.input_frames_test,
+                                                         self.gt_frames_test,
                                                          last_scale_pred_test)
                         self.scale_preds_test.append(test_preds)
                         self.scale_gts_test.append(test_gts)
@@ -213,13 +213,13 @@ class GeneratorModel:
                 # error computation
                 # get error at largest scale
                 self.psnr_error_train = psnr_error(self.scale_preds_train[-1],
-                                                   self.gt_frames_train_pseudo)
+                                                   self.gt_frames_train)
                 self.sharpdiff_error_train = sharp_diff_error(self.scale_preds_train[-1],
-                                                              self.gt_frames_train_pseudo)
+                                                              self.gt_frames_train)
                 self.psnr_error_test = psnr_error(self.scale_preds_test[-1],
-                                                  self.gt_frames_test_pseudo)
+                                                  self.gt_frames_test)
                 self.sharpdiff_error_test = sharp_diff_error(self.scale_preds_test[-1],
-                                                             self.gt_frames_test_pseudo)
+                                                             self.gt_frames_test)
                 # train error summaries
                 summary_psnr_train = tf.scalar_summary('train_PSNR',
                                                        self.psnr_error_train)

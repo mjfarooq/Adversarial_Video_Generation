@@ -108,7 +108,6 @@ class DiscriminatorModel:
                  predictions.
         """
         feed_dict = {}
-        import pdb; pdb.set_trace()  # breakpoint 5d38b2af //
         
         batch_size = np.shape(gt_output_frames)[0]
 
@@ -174,8 +173,8 @@ class DiscriminatorModel:
         ##
         # Resize inputs and gt_frames to pseudo_size
         ##
-        input_frames = tf.image.resize_images(input_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
-        gt_output_frames = tf.image.resize_images(gt_output_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+        #input_frames = tf.image.resize_images(input_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
+        #gt_output_frames = tf.image.resize_images(gt_output_frames,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
 
         ##
         # Train
