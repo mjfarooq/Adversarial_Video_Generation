@@ -92,8 +92,8 @@ TRAIN_WIDTH = 32
 PSEUDO_HEIGHT = 32
 PSEUDO_WIDTH = 32
 # original data size. For preparing data perparing pe
-TRAIN_HEIGHT_RAW = 18
-TRAIN_WIDTH_RAW =20
+TRAIN_HEIGHT_RAW = 20
+TRAIN_WIDTH_RAW =18
 # the channel number of input
 NUM_INPUT_CHANNEL=1
 
@@ -189,10 +189,10 @@ LRATE_G = 0.00004  # Value in paper is 0.04
 PADDING_G = 'SAME'
 # feature maps for each convolution of each scale network in the generator model
 # e.g SCALE_FMS_G[1][2] is the input of the 3rd convolution in the 2nd scale network.
-SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 128, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 128, 256, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
 # kernel sizes for each convolution of each scale network in the generator model
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],
@@ -209,10 +209,10 @@ LRATE_D = 0.02
 # padding for convolutions in the discriminator model
 PADDING_D = 'VALID'
 # feature maps for each convolution of each scale network in the discriminator model
-SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 64],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 64, 128, 128],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 256],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 512, 128]]
+SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 128],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 192, 192],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 384],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 512, 128]]
 # kernel sizes for each convolution of each scale network in the discriminator model
 SCALE_KERNEL_SIZES_D = [[3],
                         [3, 3, 3],
