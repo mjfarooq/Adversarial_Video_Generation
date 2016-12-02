@@ -129,9 +129,11 @@ def main():
                                 ['load_path=', 'test_dir=', 'recursions=', 'adversarial=', 'name=',
                                  'overwrite', 'test_only', 'help', 'stats_freq=', 'summary_freq=',
                                  'img_save_freq=', 'test_freq=', 'model_save_freq='])
+
     except getopt.GetoptError:
         usage()
         sys.exit(2)
+
 
     for opt, arg in opts:
         if opt in ('-l', '--load_path'):
@@ -144,6 +146,7 @@ def main():
             c.ADVERSARIAL = (arg.lower() == 'true' or arg.lower() == 't')
         if opt in ('-n', '--name'):
             c.set_save_name(arg)
+            
         if opt in ('-O', '--overwrite'):
             c.clear_save_name()
         if opt in ('-H', '--help'):
