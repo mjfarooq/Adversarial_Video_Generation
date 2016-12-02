@@ -328,7 +328,6 @@ class GeneratorModel:
                                                   str(pred_num)))
 
                 # save input images
-
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
