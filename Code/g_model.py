@@ -61,12 +61,12 @@ class GeneratorModel:
                 self.input_frames_train = tf.placeholder(
                     tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL * c.HIST_LEN])
                 self.gt_frames_train = tf.placeholder(
-                    tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL])
+                    tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
 
                 self.input_frames_test = tf.placeholder(
                     tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL * c.HIST_LEN])
                 self.gt_frames_test = tf.placeholder(
-                    tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL])
+                    tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
 
                 # # resize input to psedu_size
                 # self.input_frames_train = tf.image.resize_images(self.input_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
@@ -192,6 +192,7 @@ class GeneratorModel:
 
             with tf.name_scope('train'):
                 # global loss is the combined loss from every scale network
+
                 self.global_loss = combined_loss(self.scale_preds_train,
                                                  self.scale_gts_train,
                                                  self.d_scale_preds)
@@ -328,6 +329,7 @@ class GeneratorModel:
                                                   str(pred_num)))
 
                 # save input images
+
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
                     imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
@@ -339,9 +341,9 @@ class GeneratorModel:
 
                     path = os.path.join(pred_dir, 'scale' + str(scale_num))
                     gt_img = np.squeeze(scale_gts[scale_num][pred_num])
-
-                    imsave(path + '_gen.png', gen_img)
-                    imsave(path + '_gt.png', gt_img)
+                    for pred in xrange(0,c.PRED_LEN):
+                        imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
+                        imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
 
             print 'Saved images!'
             print '-' * 30
@@ -428,7 +430,8 @@ class GeneratorModel:
                 for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
                     gen_img = np.squeeze(rec_preds[rec_num][pred_num])
                     gt_img = np.squeeze(gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
-                    imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
-                    imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)
+                    for pred in xrange(0,c.PRED_LEN):
+                        imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
+                        imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
 
         print '-' * 30

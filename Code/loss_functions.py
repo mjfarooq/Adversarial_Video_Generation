@@ -78,7 +78,7 @@ def gdl_loss(gen_frames, gt_frames, alpha):
     scale_losses = []
     for i in xrange(len(gen_frames)):
         # create filters [-1, 1] and [[1],[-1]] for diffing to the left and down respectively.
-        pos = tf.constant(np.identity(c.NUM_INPUT_CHANNEL), dtype=tf.float32)
+        pos = tf.constant(np.identity(c.NUM_INPUT_CHANNEL*c.PRED_LEN), dtype=tf.float32)
         neg = -1 * pos
         filter_x = tf.expand_dims(tf.pack([neg, pos]), 0)  # [-1, 1]
         filter_y = tf.pack([tf.expand_dims(pos, 0), tf.expand_dims(neg, 0)])  # [[1],[-1]]
@@ -87,6 +87,7 @@ def gdl_loss(gen_frames, gt_frames, alpha):
 
         gen_dx = tf.abs(tf.nn.conv2d(gen_frames[i], filter_x, strides, padding=padding))
         gen_dy = tf.abs(tf.nn.conv2d(gen_frames[i], filter_y, strides, padding=padding))
+        
         gt_dx = tf.abs(tf.nn.conv2d(gt_frames[i], filter_x, strides, padding=padding))
         gt_dy = tf.abs(tf.nn.conv2d(gt_frames[i], filter_y, strides, padding=padding))
 

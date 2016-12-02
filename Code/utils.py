@@ -267,7 +267,7 @@ def sharp_diff_error(gen_frames, gt_frames):
     # gradient difference
     # create filters [-1, 1] and [[1],[-1]] for diffing to the left and down respectively.
     # TODO: Could this be simplified with one filter [[-1, 2], [0, -1]]?
-    pos = tf.constant(np.identity(c.NUM_INPUT_CHANNEL), dtype=tf.float32)
+    pos = tf.constant(np.identity(c.NUM_INPUT_CHANNEL*c.PRED_LEN), dtype=tf.float32)
     neg = -1 * pos
     filter_x = tf.expand_dims(tf.pack([neg, pos]), 0)  # [-1, 1]
     filter_y = tf.pack([tf.expand_dims(pos, 0), tf.expand_dims(neg, 0)])  # [[1],[-1]]

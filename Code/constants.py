@@ -159,7 +159,7 @@ BATCH_SIZE = 8
 # the number of history frames to give as input to the network
 HIST_LEN = 20
 # the number of predicted frames to get output of the network
-PRED_LEN=1
+PRED_LEN=20
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 0
 
@@ -189,10 +189,10 @@ LRATE_G = 0.00004  # Value in paper is 0.04
 PADDING_G = 'SAME'
 # feature maps for each convolution of each scale network in the generator model
 # e.g SCALE_FMS_G[1][2] is the input of the 3rd convolution in the 2nd scale network.
-SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN]]
 # kernel sizes for each convolution of each scale network in the generator model
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],
