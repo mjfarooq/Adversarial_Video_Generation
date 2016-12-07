@@ -55,6 +55,7 @@ class AVGRunner:
 
         # if load path specified, load a saved model
         if model_load_path is not None:
+            
             self.saver.restore(self.sess, model_load_path)
             print 'Model restored from ' + model_load_path
 

@@ -166,7 +166,7 @@ BATCH_SIZE = 8
 # the number of history frames to give as input to the network
 HIST_LEN = 20
 # the number of predicted frames to get output of the network
-PRED_LEN=20
+PRED_LEN=1
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 0
 
@@ -184,7 +184,7 @@ LAM_ADV = 0.05
 # the percentage of the lp loss to use in the combined loss
 LAM_LP = 1
 # the percentage of the GDL loss to use in the combined loss
-LAM_GDL = 1
+LAM_GDL = 0.01#1
 
 ##
 # Generator model
@@ -196,10 +196,14 @@ LRATE_G = 0.00004  # Value in paper is 0.04
 PADDING_G = 'SAME'
 # feature maps for each convolution of each scale network in the generator model
 # e.g SCALE_FMS_G[1][2] is the input of the 3rd convolution in the 2nd scale network.
-SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN]]
+# SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN]]
+SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
 # kernel sizes for each convolution of each scale network in the generator model
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],
@@ -216,10 +220,14 @@ LRATE_D = 0.02
 # padding for convolutions in the discriminator model
 PADDING_D = 'VALID'
 # feature maps for each convolution of each scale network in the discriminator model
-SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 128],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 192, 192],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 384],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 512, 128]]
+# SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 128],
+#                     [NUM_INPUT_CHANNEL*PRED_LEN, 128, 192, 192],
+#                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 384],
+#                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 512, 128]]
+SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 64],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 64, 128, 128],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 256],
+                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 512, 128]]
 # kernel sizes for each convolution of each scale network in the discriminator model
 SCALE_KERNEL_SIZES_D = [[3],
                         [3, 3, 3],

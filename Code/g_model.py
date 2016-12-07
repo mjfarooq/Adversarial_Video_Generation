@@ -341,9 +341,14 @@ class GeneratorModel:
 
                     path = os.path.join(pred_dir, 'scale' + str(scale_num))
                     gt_img = np.squeeze(scale_gts[scale_num][pred_num])
-                    for pred in xrange(0,c.PRED_LEN):
-                        imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
-                        imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
+                    if c.PRED_LEN>1:
+                        for pred in xrange(0,c.PRED_LEN):
+                            imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
+                            imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
+                    else:
+
+                        imsave(path + '_gen_' + '.png', gen_img)
+                        imsave(path + '_gt_' + '.png', gt_img)
 
             print 'Saved images!'
             print '-' * 30
@@ -420,7 +425,8 @@ class GeneratorModel:
             for pred_num in xrange(len(input_frames)):
                 pred_dir = c.get_dir(os.path.join(
                     c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step), str(pred_num)))
-
+                import pdb; pdb.set_trace()  # breakpoint 72a64b67 //
+                
                 # save input images
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
@@ -430,8 +436,12 @@ class GeneratorModel:
                 for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
                     gen_img = np.squeeze(rec_preds[rec_num][pred_num])
                     gt_img = np.squeeze(gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
-                    for pred in xrange(0,c.PRED_LEN):
-                        imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
-                        imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
+                    if c.PRED_LEN>1:
+                        for pred in xrange(0,c.PRED_LEN):
+                            imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
+                            imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
+                    else:
+                        imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
+                        imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)                         
 
         print '-' * 30
