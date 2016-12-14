@@ -164,7 +164,7 @@ class GeneratorModel:
                         # discriminator on those frames to get d_scale_preds, then run this
                         # again for the loss optimization.
                         if c.ADVERSARIAL:
-                                self.d_scale_preds.append(tf.placeholder(tf.float32, [None, 1]))
+                            self.d_scale_preds.append(tf.placeholder(tf.float32, [None, 1]))
 
                         ##
                         # Perform test calculation
@@ -269,8 +269,23 @@ class GeneratorModel:
 
             # Run the discriminator nets on those frames to get predictions
             d_feed_dict = {}
-            for scale_num, gen_frames in enumerate(scale_preds):
-                d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = gen_frames
+            if c.CONSIDER_PAST_FRAMES==0:
+                for scale_num, gen_frames in enumerate(scale_preds):
+                    d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = gen_frames
+            if c.CONSIDER_PAST_FRAMES ==1:
+                batch_size = np.shape(input_frames)[0]
+                for scale_num, gen_frames in enumerate(scale_preds):
+                    scale_net = discriminator.scale_nets[scale_num]
+                    scaled_hist_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
+                    for i, img in enumerate(input_frames):
+                        # for skimage.transform.resize, images need to be in range [0, 1], so normalize to
+                        # [0, 1] before resize and back to [-1, 1] after
+                        sknorm_img = (img / 2) + 0.5
+                        resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
+                        scaled_hist_frames[i] = (resized_frame - 0.5) * 2
+                    scaled_all_frames_g = np.concatenate([scaled_hist_frames, gen_frames],axis=3)
+                    d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = scaled_all_frames_g
+
             d_scale_preds = self.sess.run(discriminator.scale_preds, feed_dict=d_feed_dict)
 
             # Add discriminator predictions to the
@@ -425,7 +440,6 @@ class GeneratorModel:
             for pred_num in xrange(len(input_frames)):
                 pred_dir = c.get_dir(os.path.join(
                     c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step), str(pred_num)))
-                import pdb; pdb.set_trace()  # breakpoint 72a64b67 //
                 
                 # save input images
                 for frame_num in xrange(c.HIST_LEN):

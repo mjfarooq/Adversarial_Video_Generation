@@ -168,7 +168,7 @@ HIST_LEN = 20
 # the number of predicted frames to get output of the network
 PRED_LEN=1
 # Flag to consider past frames for discriminator (1) or not (0)
-CONSIDER_PAST_FRAMES = 0
+CONSIDER_PAST_FRAMES = 1
 
 
 ##
@@ -224,10 +224,10 @@ PADDING_D = 'VALID'
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 128, 192, 192],
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 384],
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 512, 128]]
-SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*PRED_LEN, 64],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 64, 128, 128],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 256],
-                    [NUM_INPUT_CHANNEL*PRED_LEN, 128, 256, 512, 128]]
+SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 64],
+                    [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 64, 128, 128],
+                    [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 256],
+                    [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 512, 128]]
 # kernel sizes for each convolution of each scale network in the discriminator model
 SCALE_KERNEL_SIZES_D = [[3],
                         [3, 3, 3],

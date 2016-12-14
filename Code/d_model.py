@@ -133,10 +133,23 @@ class DiscriminatorModel:
                 sknorm_img = (img / 2) + 0.5
                 resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
                 scaled_gt_output_frames[i] = (resized_frame - 0.5) * 2
+            # resize hist_frames 
+            scaled_hist_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
+            for i, img in enumerate(input_frames):
+                # for skimage.transform.resize, images need to be in range [0, 1], so normalize to
+                # [0, 1] before resize and back to [-1, 1] after
+                sknorm_img = (img / 2) + 0.5
+                resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
+                scaled_hist_frames[i] = (resized_frame - 0.5) * 2
 
             # combine with resized gt_output_frames to get inputs for prediction
-            scaled_input_frames = np.concatenate([g_scale_preds[scale_num],
-                                                  scaled_gt_output_frames])
+            if c.CONSIDER_PAST_FRAMES == 1:
+                scaled_all_frames_g = np.concatenate([scaled_hist_frames, g_scale_preds[scale_num]],axis=3)
+                scaled_all_frames_gt = np.concatenate([scaled_hist_frames, scaled_gt_output_frames],axis=3)
+                scaled_input_frames = np.concatenate([scaled_all_frames_g, scaled_all_frames_gt])
+            if c.CONSIDER_PAST_FRAMES == 0:
+                scaled_input_frames = np.concatenate([g_scale_preds[scale_num],
+                                                      scaled_gt_output_frames])
 
             # convert to np array and add to feed_dict
             feed_dict[scale_net.input_frames] = scaled_input_frames
@@ -167,7 +180,8 @@ class DiscriminatorModel:
             gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         if c.CONSIDER_PAST_FRAMES == 1:
-            input_frames = batch[:, :, :, :]
+            #input_frames = batch[:, :, :, :]
+            input_frames = batch[:, :, :, :-c.NUM_INPUT_CHANNEL*c.PRED_LEN]
             gt_output_frames = batch[:, :, :, -c.NUM_INPUT_CHANNEL*c.PRED_LEN:]
 
         ##
