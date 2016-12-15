@@ -162,11 +162,11 @@ MODEL_SAVE_FREQ = 10000  # how often to save the model, in # steps
 # whether to use adversarial training vs. basic training of the generator
 ADVERSARIAL = True
 # the training minibatch size
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 # the number of history frames to give as input to the network
-HIST_LEN = 20
+HIST_LEN = 32
 # the number of predicted frames to get output of the network
-PRED_LEN=1
+PRED_LEN=8
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 1
 
@@ -200,10 +200,14 @@ PADDING_G = 'SAME'
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN]]
-SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+# SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
+#                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN/8, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/8],
+               [NUM_INPUT_CHANNEL * (HIST_LEN/4 + PRED_LEN/8), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/4],
+               [NUM_INPUT_CHANNEL * (HIST_LEN/2 + PRED_LEN/4), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN/2],
+               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN/2), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
 # kernel sizes for each convolution of each scale network in the generator model
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],
@@ -224,9 +228,13 @@ PADDING_D = 'VALID'
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 128, 192, 192],
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 384],
 #                     [NUM_INPUT_CHANNEL*PRED_LEN, 256, 384, 512, 128]]
-SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 64],
-                    [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 64, 128, 128],
-                    [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 256],
+# SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*(HIST_LEN+ PRED_LEN), 64],
+#                     [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 64, 128, 128],
+#                     [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 256],
+#                     [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 512, 128]]
+SCALE_CONV_FMS_D = [[NUM_INPUT_CHANNEL*(HIST_LEN/8 + PRED_LEN/8), 64],
+                    [NUM_INPUT_CHANNEL*(HIST_LEN/4 + PRED_LEN/4), 64, 128, 128],
+                    [NUM_INPUT_CHANNEL*(HIST_LEN/2 + PRED_LEN/2), 128, 256, 256],
                     [NUM_INPUT_CHANNEL*(HIST_LEN + PRED_LEN), 128, 256, 512, 128]]
 # kernel sizes for each convolution of each scale network in the discriminator model
 SCALE_KERNEL_SIZES_D = [[3],

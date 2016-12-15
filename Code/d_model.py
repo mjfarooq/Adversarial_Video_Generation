@@ -5,6 +5,7 @@ from skimage.transform import resize
 from d_scale_model import DScaleModel
 from loss_functions import adv_loss
 import constants as c
+from tfutils import video_downsample
 
 
 # noinspection PyShadowingNames
@@ -124,7 +125,7 @@ class DiscriminatorModel:
         ##
         for scale_num in xrange(self.num_scale_nets):
             scale_net = self.scale_nets[scale_num]
-
+            scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
             # resize gt_output_frames
             scaled_gt_output_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
             for i, img in enumerate(gt_output_frames):
@@ -133,6 +134,7 @@ class DiscriminatorModel:
                 sknorm_img = (img / 2) + 0.5
                 resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
                 scaled_gt_output_frames[i] = (resized_frame - 0.5) * 2
+            scaled_gt_output_frames = video_downsample(scaled_gt_output_frames,1/scale_factor)
             # resize hist_frames 
             scaled_hist_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
             for i, img in enumerate(input_frames):
@@ -141,7 +143,8 @@ class DiscriminatorModel:
                 sknorm_img = (img / 2) + 0.5
                 resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
                 scaled_hist_frames[i] = (resized_frame - 0.5) * 2
-
+            scaled_hist_frames = video_downsample(scaled_hist_frames,1/scale_factor)
+            
             # combine with resized gt_output_frames to get inputs for prediction
             if c.CONSIDER_PAST_FRAMES == 1:
                 scaled_all_frames_g = np.concatenate([scaled_hist_frames, g_scale_preds[scale_num]],axis=3)
@@ -195,7 +198,7 @@ class DiscriminatorModel:
         ##
 
         feed_dict = self.build_feed_dict(input_frames, gt_output_frames, generator)
-
+        
         _, global_loss, global_step, summaries = self.sess.run(
             [self.train_op, self.global_loss, self.global_step, self.summaries],
             feed_dict=feed_dict)

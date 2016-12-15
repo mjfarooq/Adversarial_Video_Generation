@@ -131,3 +131,12 @@ def batch_crop_to_bounding_box(images, offset_height, offset_width, target_heigh
     right = target_width + offset_width
 
     return images[:, top:bottom, left:right, :]
+
+def video_downsample(video,factor):
+
+    output = video[:,:,:,0::int(factor)]
+
+    for i in xrange(1,int(factor)):
+        output += video[:,:,:,i::int(factor)]
+    output /= factor
+    return output
