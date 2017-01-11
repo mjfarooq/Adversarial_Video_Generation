@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from scipy.misc import imsave
+from scipy.misc import imsave,toimage
 from skimage.transform import resize
 from copy import deepcopy
 import os
@@ -67,7 +67,7 @@ class GeneratorModel:
                     tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL * c.HIST_LEN])
                 self.gt_frames_test = tf.placeholder(
                     tf.float32, shape=[None, self.height_test, self.width_test, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
-
+                self.convKeepProb = tf.placeholder(tf.float32)
                 # # resize input to psedu_size
                 # self.input_frames_train = tf.image.resize_images(self.input_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
                 # self.gt_frames_train = tf.image.resize_images(self.gt_frames_train,[c.PSEUDO_HEIGHT,c.PSEUDO_WIDTH])
@@ -140,6 +140,7 @@ class GeneratorModel:
                                         preds = tf.nn.tanh(preds + bs[i])
                                     else:
                                         preds = tf.nn.relu(preds + bs[i])
+                                        preds = tf.nn.dropout(preds,self.convKeepProb)
                             return preds, scale_gts
 
                         ##
@@ -215,11 +216,11 @@ class GeneratorModel:
             with tf.name_scope('error'):
                 # error computation
                 # get error at largest scale
-                self.psnr_error_train = psnr_error(self.scale_preds_train[-1],
+                self.psnr_error_train, _ = psnr_error(self.scale_preds_train[-1],
                                                    self.gt_frames_train)
                 self.sharpdiff_error_train = sharp_diff_error(self.scale_preds_train[-1],
                                                               self.gt_frames_train)
-                self.psnr_error_test = psnr_error(self.scale_preds_test[-1],
+                self.psnr_error_test, _ = psnr_error(self.scale_preds_test[-1],
                                                   self.gt_frames_test)
                 self.sharpdiff_error_test = sharp_diff_error(self.scale_preds_test[-1],
                                                              self.gt_frames_test)
@@ -263,7 +264,9 @@ class GeneratorModel:
         # Train
         ##
 
-        feed_dict = {self.input_frames_train: input_frames, self.gt_frames_train: gt_frames}
+        feed_dict = {self.input_frames_train: input_frames, 
+                     self.gt_frames_train: gt_frames,
+                     self.convKeepProb: c.CONV_KEEPPROB}
 
         if c.ADVERSARIAL:
             # Run the generator first to get generated frames
@@ -274,6 +277,8 @@ class GeneratorModel:
             if c.CONSIDER_PAST_FRAMES==0:
                 for scale_num, gen_frames in enumerate(scale_preds):
                     d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = gen_frames
+                    d_feed_dict[discriminator.scale_nets[scale_num].fcKeepProb] = c.FC_KEEPPROB#1.0
+                    d_feed_dict[discriminator.scale_nets[scale_num].convKeepProb] = c.CONV_KEEPPROB#1.0
             if c.CONSIDER_PAST_FRAMES ==1:
                 batch_size = np.shape(input_frames)[0]
                 for scale_num, gen_frames in enumerate(scale_preds):
@@ -289,6 +294,8 @@ class GeneratorModel:
                     scaled_hist_frames = video_downsample(scaled_hist_frames,1/scale_factor)
                     scaled_all_frames_g = np.concatenate([scaled_hist_frames, gen_frames],axis=3)
                     d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = scaled_all_frames_g
+                    d_feed_dict[discriminator.scale_nets[scale_num].fcKeepProb] = c.FC_KEEPPROB#1.0
+                    d_feed_dict[discriminator.scale_nets[scale_num].convKeepProb] = c.CONV_KEEPPROB#1.0
 
             d_scale_preds = self.sess.run(discriminator.scale_preds, feed_dict=d_feed_dict)
 
@@ -352,7 +359,8 @@ class GeneratorModel:
 
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
-                    imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
+                    toimage(img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'))
+                    #imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
 
                 # save preds and gts at each scale
                 # noinspection PyUnboundLocalVariable
@@ -371,8 +379,10 @@ class GeneratorModel:
                     #     imsave(path + '_gen_' + '.png', gen_img[:,:,0])
                     #     imsave(path + '_gt_' + '.png', gt_img[:,:,0])
                     for pred in xrange(0,gen_len):
-                            imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
-                            imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
+                            toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gen_'+ str(pred) + '.png')
+                            toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gt_'+ str(pred) + '.png')
+                            # imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
+                            # imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
 
             print 'Saved images!'
             print '-' * 30
@@ -412,13 +422,17 @@ class GeneratorModel:
         ##
 
         working_input_frames = deepcopy(input_frames)  # input frames that will shift w/ recursion
-        rec_preds = []
+        rec_preds = np.zeros((c.BATCH_SIZE, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL * num_rec_out))
         rec_summaries = []
+        total_preds=tf.placeholder(
+                    tf.float32, shape=[None, self.height_train, self.width_train, c.NUM_INPUT_CHANNEL * num_rec_out])
+        psnr_total,psnr_total_each = psnr_error(total_preds,gt_frames)
         for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
             working_gt_frames = gt_frames[:, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)]
 
             feed_dict = {self.input_frames_test: working_input_frames,
-                         self.gt_frames_test: working_gt_frames}
+                         self.gt_frames_test: working_gt_frames,
+                         self.convKeepProb: 1.0}
             preds, psnr, sharpdiff, summaries = self.sess.run([self.scale_preds_test[-1],
                                                                self.psnr_error_test,
                                                                self.sharpdiff_error_test,
@@ -430,13 +444,17 @@ class GeneratorModel:
                 [working_input_frames[:, :, :, c.NUM_INPUT_CHANNEL*c.PRED_LEN:], preds], axis=3)
 
             # add predictions and summaries
-            rec_preds.append(preds)
+            rec_preds[:,:,:,c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)] = preds
             rec_summaries.append(summaries)
 
-            print 'Recursion ', rec_num
-            print 'PSNR Error     : ', psnr
-            print 'Sharpdiff Error: ', sharpdiff
 
+            # print 'Recursion ', rec_num
+            # print 'PSNR Error     : ', psnr
+            # print 'Sharpdiff Error: ', sharpdiff
+
+        psnr_trials,psnr_totals_each = self.sess.run([psnr_total,psnr_total_each],feed_dict = {total_preds:rec_preds})
+
+        print 'PSNR Error     : ', psnr_trials
         # write summaries
         # TODO: Think of a good way to write rec output summaries - rn, just using first output.
         self.summary_writer.add_summary(rec_summaries[0], global_step)
@@ -447,24 +465,31 @@ class GeneratorModel:
 
         if save_imgs:
             for pred_num in xrange(len(input_frames)):
+
                 pred_dir = c.get_dir(os.path.join(
-                    c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step), str(pred_num)))
+                    c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step), str(pred_num)+'_psnr='+str(psnr_totals_each[pred_num])))
                 
                 # save input images
                 for frame_num in xrange(c.HIST_LEN):
                     img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
-                    imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
+                    #imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
+                    toimage(img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'))
 
                 # save recursive outputs
                 for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
-                    gen_img = np.squeeze(rec_preds[rec_num/c.PRED_LEN][pred_num])
+
+                    gen_img = np.squeeze(rec_preds[pred_num,:,:,c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
                     gt_img = np.squeeze(gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
                     if c.PRED_LEN>1:
                         for pred in xrange(0,c.PRED_LEN):
-                            imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
-                            imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
+                            # imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
+                            # imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
+                            toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'))
+                            toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'))
                     else:
-                        imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
-                        imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)                         
+                        # imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
+                        # imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)  
+                        toimage(gen_img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'))
+                        toimage(gt_img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'))
 
         print '-' * 30

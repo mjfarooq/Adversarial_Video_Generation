@@ -117,7 +117,9 @@ class DiscriminatorModel:
         ##
 
         g_feed_dict = {generator.input_frames_train: input_frames,
-                       generator.gt_frames_train: gt_output_frames}
+                       generator.gt_frames_train: gt_output_frames,
+                       generator.convKeepProb: c.CONV_KEEPPROB}
+                       #generator.convKeepProb: 1.0}
         g_scale_preds = self.sess.run(generator.scale_preds_train, feed_dict=g_feed_dict)
 
         ##
@@ -156,6 +158,8 @@ class DiscriminatorModel:
 
             # convert to np array and add to feed_dict
             feed_dict[scale_net.input_frames] = scaled_input_frames
+            feed_dict[scale_net.fcKeepProb] = c.FC_KEEPPROB
+            feed_dict[scale_net.convKeepProb] = c.CONV_KEEPPROB
 
         # add labels for each image to feed_dict
         batch_size = np.shape(input_frames)[0]

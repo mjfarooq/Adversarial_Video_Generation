@@ -96,7 +96,8 @@ TRAIN_HEIGHT_RAW = 20
 TRAIN_WIDTH_RAW =18
 # the channel number of input
 NUM_INPUT_CHANNEL=1
-
+TEST_INDEX = np.array(range(0,16000,1000))
+RANDON_TEST = 0;
 ##
 # Output
 ##
@@ -164,7 +165,7 @@ ADVERSARIAL = True
 # the training minibatch size
 BATCH_SIZE = 16
 # the number of history frames to give as input to the network
-HIST_LEN = 32
+HIST_LEN = 24
 # the number of predicted frames to get output of the network
 PRED_LEN=8
 # Flag to consider past frames for discriminator (1) or not (0)
@@ -184,8 +185,10 @@ LAM_ADV = 0.05
 # the percentage of the lp loss to use in the combined loss
 LAM_LP = 1
 # the percentage of the GDL loss to use in the combined loss
-LAM_GDL = 0.01#1
-
+LAM_GDL = 0#0.01#1
+# dropout probablity
+CONV_KEEPPROB = 0.7
+FC_KEEPPROB = 0.5
 ##
 # Generator model
 ##

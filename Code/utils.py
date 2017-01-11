@@ -137,8 +137,12 @@ def get_full_clips(num_clips,train_or_val,num_rec_out=1):
     #ep_dirs = np.random.choice(glob(os.path.join(data_dir, '*')), num_clips)
 
     with h5py.File(c.DATA_DIR + 'ECOG_40_41.h5', 'r') as h5file:
+
         for i in xrange(num_clips):
-            start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
+            if train_or_val=='valid' and c.RANDON_TEST==1:
+                start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
+            else:
+                start_index = c.TEST_INDEX[i]
             clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :],dtype='float32')
 
             clips[i] = clip.transpose().reshape(c.TRAIN_HEIGHT,c.TRAIN_WIDTH,c.HIST_LEN + num_rec_out)
@@ -247,7 +251,7 @@ def psnr_error(gen_frames, gt_frames):
     square_diff = tf.square(gt_frames - gen_frames)
 
     batch_errors = 10 * log10(1 / ((1 / num_pixels) * tf.reduce_sum(square_diff, [1, 2, 3])))
-    return tf.reduce_mean(batch_errors)
+    return tf.reduce_mean(batch_errors), batch_errors
 
 def sharp_diff_error(gen_frames, gt_frames):
     """

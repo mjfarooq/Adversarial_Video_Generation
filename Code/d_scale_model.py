@@ -54,10 +54,10 @@ class DScaleModel:
         with tf.name_scope('input'):
             self.input_frames = tf.placeholder(
                 tf.float32, shape=[None, self.height, self.width, self.conv_layer_fms[0]])
-
+            self.fcKeepProb = tf.placeholder(tf.float32)
+            self.convKeepProb = tf.placeholder(tf.float32)
             # use variable batch_size for more flexibility
             self.batch_size = tf.shape(self.input_frames)[0]
-
         ##
         # Layer setup
         ##
@@ -118,7 +118,7 @@ class DScaleModel:
                         preds = tf.nn.conv2d(
                             last_input, conv_ws[i], [1, 1, 1, 1], padding=c.PADDING_D)
                         preds = tf.nn.relu(preds + conv_bs[i])
-
+                        preds = tf.nn.dropout(preds,self.convKeepProb)
                         last_input = preds
 
                 # pooling layer
@@ -140,6 +140,7 @@ class DScaleModel:
                             preds = tf.sigmoid(preds)
                         else:
                             preds = tf.nn.relu(preds)
+                            preds = tf.nn.dropout(preds,self.fcKeepProb)
 
                 # clip preds between [.1, 0.9] for stability
                 with tf.name_scope('clip'):
