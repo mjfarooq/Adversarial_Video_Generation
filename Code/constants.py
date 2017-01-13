@@ -114,12 +114,14 @@ def set_save_name(name):
         MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Models/'))
         SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Summaries/' ))
         IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Images/' ))
+        mutual_dir = get_dir(os.path.join(SAVE_DIR,TIME+'/'))
     else:
         SAVE_NAME = name
-        MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, 'Models/', SAVE_NAME))
-        SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, 'Summaries/', SAVE_NAME))
-        IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,'Images/', SAVE_NAME))
-
+        MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Models/'))
+        SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Summaries/'))
+        IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/','Images/'))
+        mutual_dir = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/'))
+    shutil.copyfile('constants.py',mutual_dir+'constants.py')
     
 
 def clear_save_name():
@@ -186,9 +188,17 @@ LAM_ADV = 0.05
 LAM_LP = 1
 # the percentage of the GDL loss to use in the combined loss
 LAM_GDL = 0#0.01#1
+
+##
+# General model para
+##
+
 # dropout probablity
 CONV_KEEPPROB = 0.7
 FC_KEEPPROB = 0.5
+#Do explicit Laplycian or not
+DOLAPLACIAN = 1
+
 ##
 # Generator model
 ##

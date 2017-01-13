@@ -1,7 +1,6 @@
 import tensorflow as tf
-from tfutils import w, b, conv_out_size
+from tfutils import w, b, conv_out_size, video_downsample, video_upsample
 import constants as c
-
 
 # noinspection PyShadowingNames
 class DScaleModel:
@@ -109,6 +108,12 @@ class DScaleModel:
             with tf.name_scope('calculation'):
                 preds = tf.zeros([self.batch_size, 1])
                 last_input = self.input_frames
+                if c.DOLAPLACIAN==1 and self.scale_index > 0:  
+                    last_input_down = tf.image.resize_images(last_input,[self.height/2,self.width/2])
+                    last_input_down = video_downsample(last_input_down,2)
+                    last_input_downup = tf.image.resize_images(last_input_down,[self.height,self.width])
+                    last_input_downup = video_upsample(last_input_downup)
+                    last_input = last_input - last_input_downup
 
                 # convolutions
                 with tf.name_scope('convolutions'):

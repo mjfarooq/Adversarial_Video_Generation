@@ -8,7 +8,7 @@ import os
 import constants as c
 from loss_functions import combined_loss
 from utils import psnr_error, sharp_diff_error
-from tfutils import w, b, video_downsample
+from tfutils import w, b, video_downsample, video_upsample
 
 # noinspection PyShadowingNames
 class GeneratorModel:
@@ -141,6 +141,13 @@ class GeneratorModel:
                                     else:
                                         preds = tf.nn.relu(preds + bs[i])
                                         preds = tf.nn.dropout(preds,self.convKeepProb)
+
+                            # perform Laplacian
+                            if c.DOLAPLACIAN==1 and scale_num > 0:
+                                with tf.name_scope('Laplacian'):
+                                    last_gen_temporal_up = video_upsample(last_gen_frames)
+
+                                    preds = preds + last_gen_temporal_up
                             return preds, scale_gts
 
                         ##
@@ -345,13 +352,13 @@ class GeneratorModel:
                     # for skimage.transform.resize, images need to be in range [0, 1], so normalize
                     # to [0, 1] before resize and back to [-1, 1] after
                     sknorm_img = (img / 2) + 0.5
-                    resized_frame = resize(sknorm_img, [scale_height, scale_width, c.NUM_INPUT_CHANNEL])
+                    resized_frame = resize(sknorm_img, [scale_height, scale_width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])                    
                     scaled_gt_frames[i] = (resized_frame - 0.5) * 2
                 scaled_gt_frames = video_downsample(scaled_gt_frames,1/scale_factor)
                 scale_gts.append(scaled_gt_frames)
 
             # for every clip in the batch, save the inputs, scale preds and scale gts
-            for pred_num in xrange(len(input_frames)):
+            for pred_num in [5]:#xrange(len(input_frames)):
                 pred_dir = c.get_dir(os.path.join(c.IMG_SAVE_DIR, 'Step_' + str(global_step),
                                                   str(pred_num)))
 
@@ -379,10 +386,11 @@ class GeneratorModel:
                     #     imsave(path + '_gen_' + '.png', gen_img[:,:,0])
                     #     imsave(path + '_gt_' + '.png', gt_img[:,:,0])
                     for pred in xrange(0,gen_len):
-                            toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gen_'+ str(pred) + '.png')
-                            toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gt_'+ str(pred) + '.png')
-                            # imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
-                            # imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
+
+                        toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gen_'+ str(pred) + '.png')
+                        toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gt_'+ str(pred) + '.png')
+                        # imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
+                        # imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
 
             print 'Saved images!'
             print '-' * 30
@@ -484,6 +492,7 @@ class GeneratorModel:
                         for pred in xrange(0,c.PRED_LEN):
                             # imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
                             # imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
+
                             toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'))
                             toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'))
                     else:

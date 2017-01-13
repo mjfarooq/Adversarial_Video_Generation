@@ -133,10 +133,20 @@ def batch_crop_to_bounding_box(images, offset_height, offset_width, target_heigh
     return images[:, top:bottom, left:right, :]
 
 def video_downsample(video,factor):
-
+    
     output = video[:,:,:,0::int(factor)]
 
     for i in xrange(1,int(factor)):
         output += video[:,:,:,i::int(factor)]
     output /= factor
+    return output
+
+def video_upsample(video,factor=2):
+    imsize =video.get_shape().as_list()
+    output_list = []
+    for f in xrange(int(imsize[3])):
+        output_list.append(video[:,:,:,f])
+        output_list.append(video[:,:,:,f])
+    
+    output = tf.pack(output_list,axis=3)
     return output
