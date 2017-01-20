@@ -154,7 +154,7 @@ DATA_SCALE_FACTOR = 10000
 # traing process control params
 STATS_FREQ      = 10     # how often to print loss/train error stats, in # steps
 SUMMARY_FREQ    = 100    # how often to save the summaries, in # steps
-IMG_SAVE_FREQ   = 1000  # how often to save generated images, in # steps
+IMG_SAVE_FREQ   = 1000   # how often to save generated images, in # steps
 TEST_FREQ       = 5000   # how often to test the model on test data, in # steps
 MODEL_SAVE_FREQ = 10000  # how often to save the model, in # steps
 
@@ -183,7 +183,7 @@ L_NUM = 2
 # the power to which each gradient term is raised in GDL loss
 ALPHA_NUM = 1
 # the percentage of the adversarial loss to use in the combined loss
-LAM_ADV = 0.05
+LAM_ADV = 1#0.05
 # the percentage of the lp loss to use in the combined loss
 LAM_LP = 1
 # the percentage of the GDL loss to use in the combined loss

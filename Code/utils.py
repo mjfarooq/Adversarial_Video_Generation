@@ -7,6 +7,7 @@ import os
 import constants as c
 from tfutils import log10
 import h5py
+import matplotlib.pyplot as plt
 
 ##
 # Data
@@ -290,3 +291,44 @@ def sharp_diff_error(gen_frames, gt_frames):
 
     batch_errors = 10 * log10(1 / ((1 / num_pixels) * tf.reduce_sum(grad_diff, [1, 2, 3])))
     return tf.reduce_mean(batch_errors)
+
+def display_result(input_frames,gen_img,gt_img,output_file):
+    #input_frames = np.squeeze(input_frames)
+    input_frames = (input_frames+1)/2
+    #gen_img = np.squeeze(gen_img)
+    gen_img[gen_img>1.] = 1.
+    gen_img[gen_img<-1.] = -1.
+    gen_img = (gen_img+1)/2
+    #gt_img = np.squeeze(gt_img)
+    gt_img = (gt_img+1)/2
+
+    len_input = input_frames.shape[2]
+
+    len_gen = gen_img.shape[2]
+    len_total = len_input+len_gen
+    plt.figure(1, figsize=(len_total, 3))
+
+    for i in xrange(len_input):
+        plt.subplot(3, len_total, i+1)
+
+        plt.imshow(input_frames[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
+        plt.clim(0.3,0.8)
+        plt.axis('off')
+    for i in xrange(len_gen):
+        plt.subplot(3, len_total, i+1+len_input)
+        plt.imshow(gen_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
+        plt.clim(0.3,0.8)
+        plt.axis('off')
+    for i in xrange(len_gen):
+        plt.subplot(3, len_total, i+1+len_input+len_total)
+        plt.imshow(gt_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
+        plt.clim(0.3,0.8)
+        plt.axis('off')
+    for i in xrange(len_gen):
+        plt.subplot(3, len_total, i+1+len_input+2*len_total)
+        plt.imshow(gt_img[:, :, i]-gen_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
+        plt.clim(-0.4,0.4)
+        plt.axis('off')
+    plt.draw()
+    plt.savefig(output_file, bbox_inches='tight')
+

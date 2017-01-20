@@ -6,8 +6,8 @@ from copy import deepcopy
 import os
 
 import constants as c
-from loss_functions import combined_loss
-from utils import psnr_error, sharp_diff_error
+from loss_functions import combined_loss, adv_loss
+from utils import psnr_error, sharp_diff_error, display_result
 from tfutils import w, b, video_downsample, video_upsample
 
 # noinspection PyShadowingNames
@@ -206,6 +206,8 @@ class GeneratorModel:
                 self.global_loss = combined_loss(self.scale_preds_train,
                                                  self.scale_gts_train,
                                                  self.d_scale_preds)
+                batch_size = tf.shape(self.scale_preds_train[0])[0]
+                self.adversarial_loss = adv_loss(self.d_scale_preds,tf.ones([batch_size, 1]))
                 self.global_step = tf.Variable(0, trainable=False)
                 self.optimizer = tf.train.AdamOptimizer(learning_rate=c.LRATE_G, name='optimizer')
                 self.train_op = self.optimizer.minimize(self.global_loss,
@@ -213,8 +215,10 @@ class GeneratorModel:
                                                         name='train_op')
 
                 # train loss summary
-                loss_summary = tf.scalar_summary('train_loss_G', self.global_loss)
-                self.summaries_train.append(loss_summary)
+                g_loss_summary = tf.scalar_summary('train_loss_G', self.global_loss)
+                self.summaries_train.append(g_loss_summary)
+                adv_loss_summary = tf.scalar_summary('train_loss_G_adv', self.adversarial_loss)
+                self.summaries_train.append(adv_loss_summary)
 
             ##
             # Error
@@ -341,6 +345,7 @@ class GeneratorModel:
 
             # re-generate scale gt_frames to avoid having to run through TensorFlow.
             scale_gts = []
+            scale_input = []
             for scale_num in xrange(self.num_scale_nets):
                 scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
                 scale_height = int(self.height_train * scale_factor)
@@ -357,17 +362,19 @@ class GeneratorModel:
                 scaled_gt_frames = video_downsample(scaled_gt_frames,1/scale_factor)
                 scale_gts.append(scaled_gt_frames)
 
+                scaled_input_frames = np.empty([c.BATCH_SIZE, scale_height, scale_width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
+                for i, img in enumerate(input_frames):
+                    # for skimage.transform.resize, images need to be in range [0, 1], so normalize
+                    # to [0, 1] before resize and back to [-1, 1] after
+                    sknorm_img = (img / 2) + 0.5
+                    resized_frame = resize(sknorm_img, [scale_height, scale_width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])                    
+                    scaled_input_frames[i] = (resized_frame - 0.5) * 2
+                scaled_input_frames = video_downsample(scaled_input_frames,1/scale_factor)
+                scale_input.append(scaled_input_frames)
+
             # for every clip in the batch, save the inputs, scale preds and scale gts
-            for pred_num in [5]:#xrange(len(input_frames)):
-                pred_dir = c.get_dir(os.path.join(c.IMG_SAVE_DIR, 'Step_' + str(global_step),
-                                                  str(pred_num)))
-
-                # save input images
-
-                for frame_num in xrange(c.HIST_LEN):
-                    img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
-                    toimage(img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'))
-                    #imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
+            pred_dir = c.get_dir(os.path.join(c.IMG_SAVE_DIR, 'Step_' + str(global_step)))
+            for pred_num in xrange(len(input_frames)):
 
                 # save preds and gts at each scale
                 # noinspection PyUnboundLocalVariable
@@ -376,21 +383,10 @@ class GeneratorModel:
                     gen_len = gen_img.shape[2]
                     path = os.path.join(pred_dir, 'scale' + str(scale_num))
                     gt_img = scale_gts[scale_num][pred_num]
+                    input_img = scale_input[scale_num][pred_num]
 
-                    # if gen_len>1:
-                    #     for pred in xrange(0,gen_len):
-                    #         imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
-                    #         imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
-                    # else:
-
-                    #     imsave(path + '_gen_' + '.png', gen_img[:,:,0])
-                    #     imsave(path + '_gt_' + '.png', gt_img[:,:,0])
-                    for pred in xrange(0,gen_len):
-
-                        toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gen_'+ str(pred) + '.png')
-                        toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(path + '_gt_'+ str(pred) + '.png')
-                        # imsave(path + '_gen_'+ str(pred) + '.png', gen_img[:,:,pred])
-                        # imsave(path + '_gt_'+ str(pred) + '.png', gt_img[:,:,pred])
+                    file = os.path.join(pred_dir, str(pred_num)+'_scale_'+str(scale_num))+'.pdf'
+                    display_result(input_img,gen_img,gt_img,file)
 
             print 'Saved images!'
             print '-' * 30
@@ -472,33 +468,9 @@ class GeneratorModel:
         ##
 
         if save_imgs:
+            pred_dir = c.get_dir(os.path.join(c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step)))
             for pred_num in xrange(len(input_frames)):
-
-                pred_dir = c.get_dir(os.path.join(
-                    c.IMG_SAVE_DIR, 'Tests/Step_' + str(global_step), str(pred_num)+'_psnr='+str(psnr_totals_each[pred_num])))
-                
-                # save input images
-                for frame_num in xrange(c.HIST_LEN):
-                    img = np.squeeze(input_frames[pred_num, :, :, (frame_num * c.NUM_INPUT_CHANNEL):((frame_num + 1) * c.NUM_INPUT_CHANNEL)])
-                    #imsave(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'), img)
-                    toimage(img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'input_' + str(frame_num) + '.png'))
-
-                # save recursive outputs
-                for rec_num in xrange(0,num_rec_out,c.PRED_LEN):
-
-                    gen_img = np.squeeze(rec_preds[pred_num,:,:,c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
-                    gt_img = np.squeeze(gt_frames[pred_num, :, :, c.NUM_INPUT_CHANNEL * rec_num: c.NUM_INPUT_CHANNEL * (rec_num + c.PRED_LEN)])
-                    if c.PRED_LEN>1:
-                        for pred in xrange(0,c.PRED_LEN):
-                            # imsave(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'), gen_img[:,:,pred])
-                            # imsave(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'), gt_img[:,:,pred])
-
-                            toimage(gen_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'))
-                            toimage(gt_img[:,:,pred],cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'))
-                    else:
-                        # imsave(os.path.join(pred_dir, 'gen_' + str(rec_num) + '.png'), gen_img)
-                        # imsave(os.path.join(pred_dir, 'gt_' + str(rec_num) + '.png'), gt_img)  
-                        toimage(gen_img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gen_' + str(rec_num+pred) + '.png'))
-                        toimage(gt_img,cmin=-1,cmax=1).save(os.path.join(pred_dir, 'gt_' + str(rec_num+pred) + '.png'))
+                file = os.path.join(pred_dir, str(pred_num)+'_psnr_'+str(psnr_totals_each[pred_num]))+'.pdf'
+                display_result(input_frames[pred_num],rec_preds[pred_num],gt_frames[pred_num],file)
 
         print '-' * 30

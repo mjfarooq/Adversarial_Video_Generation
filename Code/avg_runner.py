@@ -53,6 +53,9 @@ class AVGRunner:
         self.saver = tf.train.Saver(keep_checkpoint_every_n_hours=2,write_version=tf.train.SaverDef.V2)
         self.sess.run(tf.initialize_all_variables())
 
+        graph_def = tf.get_default_graph().as_graph_def()
+        graphpb_txt = str(graph_def)
+        with open(c.SUMMARY_SAVE_DIR+'/graphpb.txt', 'w') as f: f.write(graphpb_txt)
         # if load path specified, load a saved model
         if model_load_path is not None:
             
