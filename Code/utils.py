@@ -7,6 +7,8 @@ import os
 import constants as c
 from tfutils import log10
 import h5py
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 ##
@@ -140,7 +142,8 @@ def get_full_clips(num_clips,train_or_val,num_rec_out=1):
     with h5py.File(c.DATA_DIR + 'ECOG_40_41.h5', 'r') as h5file:
 
         for i in xrange(num_clips):
-            if train_or_val=='valid' and c.RANDON_TEST==1:
+
+            if train_or_val=='train' or c.RANDON_TEST==1:
                 start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
             else:
                 start_index = c.TEST_INDEX[i]

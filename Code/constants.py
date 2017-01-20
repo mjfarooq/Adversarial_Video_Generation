@@ -96,7 +96,7 @@ TRAIN_HEIGHT_RAW = 20
 TRAIN_WIDTH_RAW =18
 # the channel number of input
 NUM_INPUT_CHANNEL=1
-TEST_INDEX = np.array(range(0,16000,1000))
+TEST_INDEX = np.array(range(0,48000,1000))
 RANDON_TEST = 0;
 ##
 # Output
@@ -173,7 +173,6 @@ PRED_LEN=8
 # Flag to consider past frames for discriminator (1) or not (0)
 CONSIDER_PAST_FRAMES = 1
 
-
 ##
 # Loss parameters
 ##
@@ -197,7 +196,7 @@ LAM_GDL = 0#0.01#1
 CONV_KEEPPROB = 0.7
 FC_KEEPPROB = 0.5
 #Do explicit Laplycian or not
-DOLAPLACIAN = 1
+DOLAPLACIAN = 0
 
 ##
 # Generator model
