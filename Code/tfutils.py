@@ -2,20 +2,107 @@ import tensorflow as tf
 import numpy as np
 
 
-def w(shape, stddev=0.01):
+def w(shape, stddev=0.01, scope = 'Weight_block'):
     """
     @return A weight layer with the given shape and standard deviation. Initialized with a
             truncated normal distribution.
     """
-    return tf.Variable(tf.truncated_normal(shape, stddev=stddev))
+    with tf.variable_scope(scope):
+        return tf.get_variable(name = 'Weight_block', shape = shape, initializer = tf.truncated_normal_initializer(stddev=stddev))
 
 
-def b(shape, const=0.1):
+def b(shape, const=0.1, scope = 'Bias_block'):
     """
     @return A bias layer with the given shape.
     """
-    return tf.Variable(tf.constant(const, shape=shape))
+    with tf.variable_scope(scope):
+        return tf.get_variable(name='Bias_block', shape=shape, initializer = tf.constant_initializer(const))
 
+def beta_(shape, const=0.0, scope = 'beta'):
+    with tf.variable_scope(scope):
+            return tf.get_variable(name='beta', shape=shape, initializer=tf.constant_initializer(const), 
+                                    trainable=True)
+
+def gamma_(shape, mean=1.0, stddev=0.02,  scope = 'gamma'):
+    with tf.variable_scope(scope):
+        return tf.get_variable(name='gamma', shape=shape, initializer=tf.random_normal_initializer(mean, stddev),
+                                trainable=True)
+
+def pop_mean_(shape, const=0.0,  scope = 'pop_mean'):
+    with tf.variable_scope(scope):
+        return tf.get_variable(name='pop_mean', shape=shape, initializer=tf.constant_initializer(const), 
+                                trainable=False)
+
+def pop_var_(shape, const=1.0,  scope = 'pop_var'):
+    with tf.variable_scope(scope):     
+        return tf.get_variable(name='pop_var', shape=shape, initializer=tf.constant_initializer(const), 
+                                trainable=False)
+# def batch_norm(x, n_out, phase_train, scope='bn', decay=0.999, eps=1e-5, stddev=0.02):
+#     """
+#     perform 3d convolution batch normalization
+#     """
+#     #with tf.variable_scope(scope):
+#     # beta = tf.get_variable(name='beta', shape=[n_out], initializer=tf.constant_initializer(0.0),
+#     #                         trainable=True)
+#     # gamma = tf.get_variable(name='gamma', shape=[n_out], initializer=tf.random_normal_initializer(1.0, stddev),
+#     #                         trainable=True)
+#     beta = tf.Variable(tf.constant(0.0, shape=[n_out]), name='beta', trainable=True)
+#     gamma = tf.Variable(tf.constant(1.0, shape=[n_out]), name='gamma', trainable=True)
+
+#     dim = len(x.get_shape().as_list())
+#     axs = [i for i in xrange(dim-1)]
+#     batch_mean, batch_var = tf.nn.moments(x, axs, name='moments')
+
+#     ema = tf.train.ExponentialMovingAverage(decay=decay)
+
+#     def mean_var_with_update():
+#         ema_apply_op = ema.apply([batch_mean, batch_var])
+#         with tf.control_dependencies([ema_apply_op]):
+#             return tf.identity(batch_mean), tf.identity(batch_var)
+
+#     mean, var = tf.cond(phase_train,
+#                         mean_var_with_update,
+#                         lambda: (ema.average(batch_mean), ema.average(batch_var)))
+#     normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
+
+
+#     return normed
+
+
+def batch_norm(x, beta, gamma, pop_mean, pop_var , phase_train, decay=0.999, eps=1e-5):
+    """
+    perform 3d convolution batch normalization
+    """
+
+    # with tf.variable_scope(scope):
+    #     beta = tf.get_variable(name='beta', shape=[n_out], initializer=tf.constant_initializer(0.0), 
+    #                             trainable=True)
+    #     gamma = tf.get_variable(name='gamma', shape=[n_out], initializer=tf.random_normal_initializer(1.0, stddev),
+    #                             trainable=True)
+    #     pop_mean = tf.get_variable(name='pop_mean', shape=[x.get_shape()[-1]], initializer=tf.constant_initializer(0.0), 
+    #                             trainable=False)
+    #     pop_var = tf.get_variable(name='pop_var', shape=[x.get_shape()[-1]], initializer=tf.constant_initializer(1.0), 
+    #                             trainable=False)
+
+    dim = len(x.get_shape().as_list())
+    axs = [i for i in xrange(dim-1)]
+    batch_mean, batch_var = tf.nn.moments(x, axs, name='moments')
+
+    def mean_var_with_update():
+        train_mean = tf.assign(pop_mean,
+                               pop_mean * decay + batch_mean * (1 - decay))
+        train_var = tf.assign(pop_var,
+                              pop_var * decay + batch_var * (1 - decay))
+        with tf.control_dependencies([train_mean,train_var]):
+            return tf.identity(batch_mean), tf.identity(batch_var)
+
+    mean, var = tf.cond(phase_train,
+                        mean_var_with_update,
+                        lambda: (pop_mean, pop_var) )
+    normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
+
+
+    return normed
 
 def conv_out_size(i, p, k, s):
     """

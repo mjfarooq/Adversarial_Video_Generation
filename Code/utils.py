@@ -1,7 +1,9 @@
 import tensorflow as tf
 import numpy as np
 from scipy.ndimage import imread
+from scipy.misc import imresize
 from glob import glob
+from scipy.misc import toimage
 import os
 
 import constants as c
@@ -10,6 +12,7 @@ import h5py
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 ##
 # Data
@@ -118,7 +121,7 @@ def clip_l2_diff(clip):
 
 #     return clips
 
-def get_full_clips(num_clips,train_or_val,num_rec_out=1):
+def get_full_clips(num_clips,train_or_val,num_rec_out=1,Indexs=None):
     """
     Loads a batch of random clips from the unprocessed train or test data.
 
@@ -146,7 +149,7 @@ def get_full_clips(num_clips,train_or_val,num_rec_out=1):
             if train_or_val=='train' or c.RANDON_TEST==1:
                 start_index = np.random.choice(h5file[train_or_val].shape[0] - (c.HIST_LEN + num_rec_out - 1))
             else:
-                start_index = c.TEST_INDEX[i]
+                start_index = Indexs[i]
             clip = np.array(h5file[train_or_val][start_index : start_index + (c.HIST_LEN + num_rec_out), :],dtype='float32')
 
             clips[i] = clip.transpose().reshape(c.TRAIN_HEIGHT,c.TRAIN_WIDTH,c.HIST_LEN + num_rec_out)
@@ -214,7 +217,7 @@ def get_train_batch(train_batch_size, num_rec_out=1):
     return get_full_clips(train_batch_size,train_or_val='train', num_rec_out=num_rec_out)
 
 
-def get_test_batch(test_batch_size, num_rec_out=1):
+def get_test_batch(test_batch_size, num_rec_out=1, Indexs = None):
     """
     Gets a clip from the test dataset.
 
@@ -226,7 +229,7 @@ def get_test_batch(test_batch_size, num_rec_out=1):
              [test_batch_size, c.TEST_HEIGHT, c.TEST_WIDTH, (3 * (c.HIST_LEN + num_rec_out))].
              A batch of frame sequences with values normalized in range [-1, 1].
     """
-    return get_full_clips(test_batch_size,train_or_val='valid', num_rec_out=num_rec_out)
+    return get_full_clips(test_batch_size,train_or_val='valid', num_rec_out=num_rec_out, Indexs = Indexs)
 
 
 ##
@@ -295,7 +298,14 @@ def sharp_diff_error(gen_frames, gt_frames):
     batch_errors = 10 * log10(1 / ((1 / num_pixels) * tf.reduce_sum(grad_diff, [1, 2, 3])))
     return tf.reduce_mean(batch_errors)
 
-def display_result(input_frames,gen_img,gt_img,output_file):
+def pseudocolor(val, minval, maxval):
+    # Scale val to be in the range [0, 1]
+    val = (val - minval) / (maxval - minval)
+    # Return RGBA tuple from jet colormap
+    return cm.jet(val)[:,:,:,0:3]
+
+def display_result(input_frames,gen_img,gt_img,output_file=None, Save_or_Show = 'save'):
+    marge = 6
     #input_frames = np.squeeze(input_frames)
     input_frames = (input_frames+1)/2
     #gen_img = np.squeeze(gen_img)
@@ -309,29 +319,65 @@ def display_result(input_frames,gen_img,gt_img,output_file):
 
     len_gen = gen_img.shape[2]
     len_total = len_input+len_gen
-    plt.figure(1, figsize=(len_total, 3))
+
+    image_measure = [c.FULL_HEIGHT, c.FULL_WIDTH]
+    canv_size = [4*marge+3*c.FULL_HEIGHT , (len_total+1)*marge+len_total*c.FULL_WIDTH, 3]
+    future_bengin = len_input*(marge+image_measure[1])
+    gt_bengin = marge+image_measure[0]
+    error_bengin = 2*(marge+image_measure[0])
+
+    error = np.abs(gt_img-gen_img)
+    error = pseudocolor(error, -0.4, 0.4)
+    error0 = np.empty([c.FULL_HEIGHT, c.FULL_WIDTH, len_gen,3],dtype=np.float32)
+    for i in xrange(len_gen):
+        error0[:,:,i,:] = imresize((error[:,:,i,:]*255).astype('uint8'),[c.FULL_HEIGHT, c.FULL_WIDTH,3],interp='nearest')
+
+    
+
+    input_frames = pseudocolor(input_frames, 0.3, 0.8)
+    input_frames0 = np.empty([c.FULL_HEIGHT, c.FULL_WIDTH, len_input,3],dtype=np.float32)
+    for i in xrange(len_input):
+        input_frames0[:,:,i,:] = imresize((input_frames[:,:,i,:]*255).astype('uint8'),[c.FULL_HEIGHT, c.FULL_WIDTH,3],interp='nearest')
+
+    
+    gen_img = pseudocolor(gen_img, 0.3, 0.8)
+    gen_img0 = np.empty([c.FULL_HEIGHT, c.FULL_WIDTH, len_gen,3],dtype=np.float32)
+    for i in xrange(len_gen):
+        gen_img0[:,:,i,:] = imresize((gen_img[:,:,i,:]*255).astype('uint8'),[c.FULL_HEIGHT, c.FULL_WIDTH,3],interp='nearest')
+    
+
+    gt_img = pseudocolor(gt_img, 0.3, 0.8)
+    gt_img0 = np.empty([c.FULL_HEIGHT, c.FULL_WIDTH, len_gen,3],dtype=np.float32)
+    for i in xrange(len_gen):
+        gt_img0[:,:,i,:] = imresize((gt_img[:,:,i,:]*255).astype('uint8'),[c.FULL_HEIGHT, c.FULL_WIDTH,3],interp='nearest')
+    
+
+    
+    canvas = np.ones(canv_size)*255
+
+    #plt.figure(1, figsize=(len_total, 3))
+
 
     for i in xrange(len_input):
-        plt.subplot(3, len_total, i+1)
+        canvas[marge:marge+image_measure[0], marge+i*(marge+image_measure[1]):marge+i*(marge+image_measure[1])+image_measure[1], :] = input_frames0[:,:,i,:]
 
-        plt.imshow(input_frames[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
-        plt.clim(0.3,0.8)
-        plt.axis('off')
+
     for i in xrange(len_gen):
-        plt.subplot(3, len_total, i+1+len_input)
-        plt.imshow(gen_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
-        plt.clim(0.3,0.8)
-        plt.axis('off')
+
+        canvas[marge : marge+image_measure[0],\
+                marge+future_bengin+i*(marge+image_measure[1]) : marge+future_bengin+i*(marge+image_measure[1])+image_measure[1], :] = gen_img0[:,:,i,:]
+
     for i in xrange(len_gen):
-        plt.subplot(3, len_total, i+1+len_input+len_total)
-        plt.imshow(gt_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
-        plt.clim(0.3,0.8)
-        plt.axis('off')
+        canvas[gt_bengin+marge : gt_bengin+marge+image_measure[0], \
+               marge+future_bengin+i*(marge+image_measure[1]) : marge+future_bengin+i*(marge+image_measure[1])+image_measure[1], :] = gt_img0[:,:,i,:]
+
     for i in xrange(len_gen):
-        plt.subplot(3, len_total, i+1+len_input+2*len_total)
-        plt.imshow(gt_img[:, :, i]-gen_img[:, :, i], cmap=plt.cm.jet, interpolation="nearest")
-        plt.clim(-0.4,0.4)
-        plt.axis('off')
-    plt.draw()
-    plt.savefig(output_file, bbox_inches='tight')
+        canvas[error_bengin+marge : error_bengin+marge+image_measure[0], \
+               marge+future_bengin+i*(marge+image_measure[1]) : marge+future_bengin+i*(marge+image_measure[1])+image_measure[1], :] = error0[:,:,i,:]
+
+    if Save_or_Show=='save':
+        toimage(canvas,cmin=0,cmax=255).save(output_file, quality=100)
+    if Save_or_Show=='show':
+        imgplt = plt.imshow(canvas)
+        plt.show()
 

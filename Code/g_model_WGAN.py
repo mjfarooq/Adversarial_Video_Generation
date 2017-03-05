@@ -6,7 +6,10 @@ from copy import deepcopy
 import os
 
 import constants as c
-from loss_functions import combined_loss, adv_loss
+if c.WGAN:
+    from loss_functions_WGAN import g_loss
+else:
+    from loss_functions import combined_loss, adv_loss
 from utils import psnr_error, sharp_diff_error, display_result
 from tfutils import w, b, video_downsample, video_upsample, batch_norm, beta_, gamma_, pop_mean_, pop_var_
 
@@ -89,7 +92,7 @@ class GeneratorModel:
             self.scale_preds_train = []  # the generated images at each scale
             self.scale_inject_feature_train = [] # the injected features at each scale
             self.scale_gts_train = []  # the ground truth images at each scale
-            self.d_scale_preds = []  # the predictions from the discriminator model
+            self.fake_scale_logit = []  # the predictions from the discriminator model
 
             self.summaries_test = []
             self.scale_preds_test = []  # the generated images at each scale
@@ -109,6 +112,7 @@ class GeneratorModel:
                         gammas = []
                         pop_means =[]
                         pop_vars=[]
+
                         # create weights for kernels
                         for i in xrange(len(self.scale_kernel_sizes[scale_num])):
                             ws_feature_input_num = self.scale_layer_fms[scale_num][i]
@@ -153,7 +157,7 @@ class GeneratorModel:
                                 last_gen_frames = tf.image.resize_images(last_gen_frames,
                                                                          [scale_height,
                                                                          scale_width])
-                                #inputs = tf.concat(3, [inputs, last_gen_frames])
+                                # inputs = tf.concat(3, [inputs, last_gen_frames])
 
                             # generated frame predictions
                             preds = inputs
@@ -182,7 +186,6 @@ class GeneratorModel:
                                     else:
                                         preds = tf.nn.relu(preds + bs[i])
                                         preds = tf.nn.dropout(preds,self.convKeepProb)
-
                                     if i == (len(self.scale_kernel_sizes[scale_num]) + c.INJECT_LAYER_FROM[scale_num]):
                                         inject = preds
 
@@ -193,6 +196,7 @@ class GeneratorModel:
                                     preds = preds + last_gen_temporal_up
 
                             return preds, scale_gts, inject
+
 
                         ##
                         # Perform train calculation
@@ -218,10 +222,10 @@ class GeneratorModel:
                         self.scale_gts_train.append(train_gts)
 
                         # We need to run the network first to get generated frames, run the
-                        # discriminator on those frames to get d_scale_preds, then run this
+                        # discriminator on those frames to get fake_scale_logit, then run this
                         # again for the loss optimization.
                         if c.ADVERSARIAL:
-                            self.d_scale_preds.append(tf.placeholder(tf.float32, [None, 1]))
+                            self.fake_scale_logit.append(tf.placeholder(tf.float32, [None, 1]))
 
                         ##
                         # Perform test calculation
@@ -255,54 +259,55 @@ class GeneratorModel:
                 ## global loss is the combined loss from every scale network
                 batch_size = tf.shape(self.scale_preds_train[0])[0]
 
-                self.global_loss = combined_loss(self.scale_preds_train,
+                self.g_loss = g_loss(self.scale_preds_train,
                                                              self.scale_gts_train,
-                                                             self.d_scale_preds)[0]
+                                                             self.fake_scale_logit)[0]
 
-                self.adversarial_loss = adv_loss(self.d_scale_preds,tf.ones([batch_size, 1]))[0]
+                #self.adversarial_loss = adv_loss(self.fake_scale_logit,tf.ones([batch_size, 1]))[0]
                 
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=c.LRATE_G, name='optimizer')
+                #self.optimizer = tf.train.AdamOptimizer(learning_rate=c.LRATE_G, name='optimizer')
+                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=c.LRATE_G, name='optimizer')
 
                 self.global_step = tf.Variable(0, trainable=False)
-                self.train_op = self.optimizer.minimize(self.global_loss,
+                self.train_op = self.optimizer.minimize(self.g_loss,
                                                             global_step=self.global_step,
                                                             name='train_op')
 
                 # scale0_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "generator/scale_0/setup")
                 # scale3_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "generator/scale_3/setup")                    
 
-                # self.scale0_grad = tf.gradients(self.global_loss, scale0_vars)
-                # self.scale3_grad = tf.gradients(self.global_loss, scale3_vars)
+                # self.scale0_grad = tf.gradients(self.g_loss, scale0_vars)
+                # self.scale3_grad = tf.gradients(self.g_loss, scale3_vars)
 
 
 
-                g_loss_summary = tf.scalar_summary('train_loss_G', self.global_loss)
+                g_loss_summary = tf.scalar_summary('train_loss_G', self.g_loss)
                 self.summaries_train.append(g_loss_summary)
-                adv_loss_summary = tf.scalar_summary('train_loss_G_adv', self.adversarial_loss)
-                self.summaries_train.append(adv_loss_summary)
+                # adv_loss_summary = tf.scalar_summary('train_loss_G_adv', self.adversarial_loss)
+                # self.summaries_train.append(adv_loss_summary)
 
                 # loss for teacher forcing
-                # self.global_loss_scale = combined_loss(self.scale_preds_train,
+                # self.g_loss_scale = combined_loss(self.scale_preds_train,
                 #                                              self.scale_gts_train,
-                #                                              self.d_scale_preds)[1]
-                # self.global_loss_scale = tf.unpack(self.global_loss_scale)
+                #                                              self.fake_scale_logit)[1]
+                # self.g_loss_scale = tf.unpack(self.g_loss_scale)
 
-                # self.adversarial_loss_scale = adv_loss(self.d_scale_preds,tf.ones([batch_size, 1]))[1]
+                # self.adversarial_loss_scale = adv_loss(self.fake_scale_logit,tf.ones([batch_size, 1]))[1]
                 # self.adversarial_loss_scale = tf.pack(self.adversarial_loss_scale)
 
-                # loss_num = len(self.global_loss_scale)
+                # loss_num = len(self.g_loss_scale)
 
                 # for i in xrange(loss_num):
                 #     self.optimizer_scale.append(tf.train.AdamOptimizer(learning_rate=c.LRATE_G, name='optimizer'))
                 #     self.step_T.append( tf.Variable(0, trainable=False))
 
                 # for i in xrange(loss_num):
-                #     self.train_op_scale.append( self.optimizer_scale[i].minimize(self.global_loss_scale[i],
+                #     self.train_op_scale.append( self.optimizer_scale[i].minimize(self.g_loss_scale[i],
                 #                                                         global_step=self.step_T[i],
                 #                                                         name='train_op'))
 
                 #     # train loss summary
-                #     g_loss_summary = tf.scalar_summary('train_loss_G'+str(i), self.global_loss_scale[i])
+                #     g_loss_summary = tf.scalar_summary('train_loss_G'+str(i), self.g_loss_scale[i])
                 #     self.summaries_train.append(g_loss_summary)
                 #     adv_loss_summary = tf.scalar_summary('train_loss_G_adv'+str(i), self.adversarial_loss_scale[i])
                 #     self.summaries_train.append(adv_loss_summary)
@@ -367,11 +372,12 @@ class GeneratorModel:
                      self.gt_frames_train: gt_frames,
                      self.convKeepProb: c.CONV_KEEPPROB,
                      self.teacher_forcing: teach,
-                     self.bn_mode : True}#c.TEACTHER_FORCE}
+                     self.bn_mode : True}
 
         if c.ADVERSARIAL:
             # Run the generator first to get generated frames
             scale_preds = self.sess.run(self.scale_preds_train, feed_dict=feed_dict)
+
 
             # Run the discriminator nets on those frames to get predictions
             d_feed_dict = {}
@@ -380,6 +386,8 @@ class GeneratorModel:
                     d_feed_dict[discriminator.scale_nets[scale_num].input_frames] = gen_frames
                     d_feed_dict[discriminator.scale_nets[scale_num].fcKeepProb] = 1.0#c.FC_KEEPPROB#1.0
                     d_feed_dict[discriminator.scale_nets[scale_num].convKeepProb] = 1.0#c.CONV_KEEPPROB#1.0
+                    d_feed_dict[discriminator.scale_nets[scale_num].bn_mode] = False # batch norm on test mode
+
             if c.CONSIDER_PAST_FRAMES ==1:
                 batch_size = np.shape(input_frames)[0]
                 for scale_num, gen_frames in enumerate(scale_preds):
@@ -399,16 +407,16 @@ class GeneratorModel:
                     d_feed_dict[discriminator.scale_nets[scale_num].convKeepProb] = 1.0#c.CONV_KEEPPROB#1.0
                     d_feed_dict[discriminator.scale_nets[scale_num].bn_mode] = False # batch norm on test mode
 
-            d_scale_preds = self.sess.run(discriminator.scale_preds, feed_dict=d_feed_dict)
+            fake_scale_logit = self.sess.run(discriminator.scale_preds, feed_dict=d_feed_dict)
 
             # Add discriminator predictions to the
-            for i, preds in enumerate(d_scale_preds):
-                feed_dict[self.d_scale_preds[i]] = preds
+            for i, logit in enumerate(fake_scale_logit):
+                feed_dict[self.fake_scale_logit[i]] = logit
 
         # if c.TEACTHER_FORCE == 0:
-        _, global_loss, global_psnr_error, global_sharpdiff_error, global_step, summaries = \
+        _, g_loss, global_psnr_error, global_sharpdiff_error, global_step, summaries = \
             self.sess.run([self.train_op,
-                           self.global_loss,
+                           self.g_loss,
                            self.psnr_error_train,
                            self.sharpdiff_error_train,
                            self.global_step,
@@ -418,9 +426,9 @@ class GeneratorModel:
 
 
         # else:
-        #     _, global_loss_scale, global_psnr_error, global_sharpdiff_error, global_step, summaries = \
+        #     _, g_loss_scale, global_psnr_error, global_sharpdiff_error, global_step, summaries = \
         #         self.sess.run([self.train_op_scale,
-        #                        self.global_loss_scale,
+        #                        self.g_loss_scale,
         #                        self.psnr_error_train,
         #                        self.sharpdiff_error_train,
         #                        self.global_step,
@@ -432,7 +440,7 @@ class GeneratorModel:
         ##
         if global_step % c.STATS_FREQ == 0:
             print 'GeneratorModel : Step ', global_step
-            print '                 Global Loss    : ', global_loss
+            print '                 Global Loss    : ', g_loss
             print '                 PSNR Error     : ', global_psnr_error
             print '                 Sharpdiff Error: ', global_sharpdiff_error
         if global_step % c.SUMMARY_FREQ == 0:
@@ -548,6 +556,7 @@ class GeneratorModel:
                                                                self.sharpdiff_error_test,
                                                                self.summaries_test],
                                                               feed_dict=feed_dict)
+
             # from utils_debug import get_discriminate_pred
             # d_pred_scale_gen, d_pred_scale_gt = get_discriminate_pred(self.sess,discriminator,working_input_frames,working_gt_frames,preds)
             # import pdb; pdb.set_trace()  # breakpoint 3a72a72f //

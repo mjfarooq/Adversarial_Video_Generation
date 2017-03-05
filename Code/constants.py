@@ -96,13 +96,13 @@ TRAIN_HEIGHT_RAW = 20
 TRAIN_WIDTH_RAW =18
 # the channel number of input
 NUM_INPUT_CHANNEL=1
-TEST_INDEX = np.array(range(0,48000,1000))
+TEST_INDEX = np.array(range(1000,1800,10))#np.array(range(0,16000,1000))#np.array(range(1000,1800,10))
 RANDON_TEST = 0;
 ##
 # Output
 ##
 
-def set_save_name(name):
+def set_save_name(name,load=None):
     """
     Edits all constants dependent on SAVE_NAME.
 
@@ -110,18 +110,29 @@ def set_save_name(name):
     """
     global SAVE_NAME, MODEL_SAVE_DIR, SUMMARY_SAVE_DIR, IMG_SAVE_DIR
     TIME = strftime("%Y-%m-%d_%H_%M_%S", gmtime())
-    if name == 'time':
-        MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Models/'))
-        SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Summaries/' ))
-        IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Images/' ))
-        mutual_dir = get_dir(os.path.join(SAVE_DIR,TIME+'/'))
+    if load is not None:
+        dir = name.split('/')
+        n = len(dir)
+        mutual_dir=''
+        for i in xrange(n-2):
+            mutual_dir += dir[i]+'/'
+        MODEL_SAVE_DIR = get_dir(os.path.join(mutual_dir,'Models/'))
+        SUMMARY_SAVE_DIR = get_dir(os.path.join(mutual_dir, 'Summaries/' ))
+        IMG_SAVE_DIR = get_dir(os.path.join(mutual_dir, 'Images/' ))
+        
     else:
-        SAVE_NAME = name
-        MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Models/'))
-        SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Summaries/'))
-        IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/','Images/'))
-        mutual_dir = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/'))
-    shutil.copyfile('constants.py',mutual_dir+'constants.py')
+        if name == 'time':
+            MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Models/'))
+            SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Summaries/' ))
+            IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,TIME+'/', 'Images/' ))
+            mutual_dir = get_dir(os.path.join(SAVE_DIR,TIME+'/'))
+        else:
+            SAVE_NAME = name
+            MODEL_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Models/'))
+            SUMMARY_SAVE_DIR = get_dir(os.path.join(SAVE_DIR, SAVE_NAME+'@'+TIME+'/','Summaries/'))
+            IMG_SAVE_DIR = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/','Images/'))
+            mutual_dir = get_dir(os.path.join(SAVE_DIR,SAVE_NAME+'@'+TIME+'/'))
+        shutil.copyfile('constants.py',mutual_dir+'constants.py')
     
 
 def clear_save_name():
@@ -158,20 +169,7 @@ IMG_SAVE_FREQ   = 1000   # how often to save generated images, in # steps
 TEST_FREQ       = 5000   # how often to test the model on test data, in # steps
 MODEL_SAVE_FREQ = 10000  # how often to save the model, in # steps
 
-##
-# General training
-##
 
-# whether to use adversarial training vs. basic training of the generator
-ADVERSARIAL = True
-# the training minibatch size
-BATCH_SIZE = 16
-# the number of history frames to give as input to the network
-HIST_LEN = 24
-# the number of predicted frames to get output of the network
-PRED_LEN=8
-# Flag to consider past frames for discriminator (1) or not (0)
-CONSIDER_PAST_FRAMES = 1
 
 ##
 # Loss parameters
@@ -188,6 +186,26 @@ LAM_LP = 1
 # the percentage of the GDL loss to use in the combined loss
 LAM_GDL = 0#0.01#1
 
+
+##
+# General training
+##
+
+# whather to use teacher_forcing
+TEACTHER_FORCE = 1
+# whether to use adversarial training vs. basic training of the generator
+ADVERSARIAL = True
+# the training minibatch size
+BATCH_SIZE = 16
+# test batch
+BATCH_SIZE_TEST = 16
+# the number of history frames to give as input to the network
+HIST_LEN = 24
+# the number of predicted frames to get output of the network
+PRED_LEN=8
+# Flag to consider past frames for discriminator (1) or not (0)
+CONSIDER_PAST_FRAMES = 1
+
 ##
 # General model para
 ##
@@ -196,16 +214,42 @@ LAM_GDL = 0#0.01#1
 CONV_KEEPPROB = 0.7
 FC_KEEPPROB = 0.5
 #Do explicit Laplycian or not
-DOLAPLACIAN = 0
+DOLAPLACIAN = 1
+#Do feature injecting or not
+BATCH_NORM = True
+FEATURE_INJECT = True
+RES_FEATURE = False # RES inject or concatenate inject
+if RES_FEATURE:
+    INJECT_LAYER_FROM = [-3,-3,-4,-4]
+    INJECT_LAYER_TO = [2,2,3]
+else:
+    INJECT_LAYER_FROM = [-4,-3,-4,-1]
+    INJECT_LAYER_TO = [1,2,3]
+
+if FEATURE_INJECT:
+    TEACTHER_FORCE = 0
+    DOLAPLACIAN = 0
+else:
+    INJECT_LAYER_FROM = [-1,-1,-1,-1]
+    INJECT_LAYER_TO = [0,0,0]
+WGAN = False
+WGAN_CLAMP_UPPER = 0.01#0.01
+WGAN_CLAMP_LOWER = -0.01#-0.01
+WGAN_CITERS = 1
 
 ##
 # Generator model
 ##
 
 # learning rate for the generator model
-LRATE_G = 0.00004  # Value in paper is 0.04
+if WGAN:
+    LRATE_G = 0.00005
+else:
+    LRATE_G = 0.00004  # Value in paper is 0.04
 # padding for convolutions in the generator model
 PADDING_G = 'SAME'
+
+
 # feature maps for each convolution of each scale network in the generator model
 # e.g SCALE_FMS_G[1][2] is the input of the 3rd convolution in the 2nd scale network.
 # SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 256, NUM_INPUT_CHANNEL*PRED_LEN],
@@ -216,11 +260,28 @@ PADDING_G = 'SAME'
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN],
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN],
 #                [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+
+
+# SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN/8, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/8],
+#                [NUM_INPUT_CHANNEL * HIST_LEN/4, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/4],
+#                [NUM_INPUT_CHANNEL * HIST_LEN/2, 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN/2],
+#                [NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+
+
 SCALE_FMS_G = [[NUM_INPUT_CHANNEL * HIST_LEN/8, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/8],
-               [NUM_INPUT_CHANNEL * (HIST_LEN/4 + PRED_LEN/8), 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/4],
-               [NUM_INPUT_CHANNEL * (HIST_LEN/2 + PRED_LEN/4), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN/2],
-               [NUM_INPUT_CHANNEL * (HIST_LEN + PRED_LEN/2), 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+               [NUM_INPUT_CHANNEL * HIST_LEN/4, 256, 384, 128, NUM_INPUT_CHANNEL*PRED_LEN/4],
+               [NUM_INPUT_CHANNEL * HIST_LEN/2, 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN/2],
+               [NUM_INPUT_CHANNEL * HIST_LEN, 256, 384, 512, 256, 128, NUM_INPUT_CHANNEL*PRED_LEN]]
+
+if RES_FEATURE is not True:
+    for s in xrange(len(SCALE_FMS_G)-1):
+        SCALE_FMS_G[s+1][INJECT_LAYER_TO[s]]+=SCALE_FMS_G[s][INJECT_LAYER_FROM[s]]
+
+
 # kernel sizes for each convolution of each scale network in the generator model
+
+# No. of layer inject to upper scale
+
 SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
                         [5, 3, 3, 5],
                         [5, 3, 3, 3, 3, 5],
@@ -232,7 +293,10 @@ SCALE_KERNEL_SIZES_G = [[3, 3, 3, 3],
 ##
 
 # learning rate for the discriminator model
-LRATE_D = 0.02
+if WGAN:
+    LRATE_D = 0.00005
+else:
+    LRATE_D = 5e-5
 # padding for convolutions in the discriminator model
 PADDING_D = 'VALID'
 # feature maps for each convolution of each scale network in the discriminator model

@@ -1,12 +1,16 @@
 import tensorflow as tf
 import numpy as np
+import re
 from skimage.transform import resize
 
 from d_scale_model import DScaleModel
-from loss_functions import adv_loss
 import constants as c
+if c.WGAN:
+    from loss_functions_WGAN import d_loss
+else:
+    from loss_functions import combined_loss, adv_loss
+
 from tfutils import video_downsample
-from copy import deepcopy
 
 
 # noinspection PyShadowingNames
@@ -55,7 +59,7 @@ class DiscriminatorModel:
             ##
             # Setup scale networks. Each will make the predictions for images at a given scale.
             ##
-
+            # net for fake samples
             self.scale_nets = []
 
             for scale_num in xrange(self.num_scale_nets):
@@ -74,47 +78,59 @@ class DiscriminatorModel:
             for scale_num in xrange(self.num_scale_nets):
                 self.scale_preds.append(self.scale_nets[scale_num].preds)
 
-            ##
-            # Data
-            ##
 
-            self.labels = tf.placeholder(tf.float32, shape=[None, 1], name='labels')
+            scope.reuse_variables()
 
-            ##
-            # Training
-            ##
+
+            # net for real samples
+            self.scale_nets_real = []
+
+            for scale_num in xrange(self.num_scale_nets):
+                with tf.variable_scope('scale_net_' + str(scale_num)):
+                    scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
+
+                    self.scale_nets_real.append(DScaleModel(scale_num,
+                                                       int(self.height * scale_factor),
+                                                       int(self.width * scale_factor),
+                                                       self.scale_conv_layer_fms[scale_num],
+                                                       self.scale_kernel_sizes[scale_num],
+                                                       self.scale_fc_layer_sizes[scale_num]))
+
+            # A list of the prediction tensors for each scale network
+            self.scale_preds_real = []
+            for scale_num in xrange(self.num_scale_nets):
+                self.scale_preds_real.append(self.scale_nets_real[scale_num].preds)
 
             with tf.name_scope('training'):
                 # For Non-teacher-forcing
                 ## global loss is the combined loss from every scale network
-                self.global_loss = adv_loss(self.scale_preds, self.labels)[0]
+                self.d_loss = d_loss(self.scale_preds, self.scale_preds_real)[0]
+
+                #self.d_loss = d_loss(self.scale_preds, self.scale_preds)[0]
                 self.global_step = tf.Variable(0, trainable=False, name='global_step')
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')#tf.train.AdamOptimizer(learning_rate=c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')
-                self.train_op = self.optimizer.minimize(self.global_loss,
+                #self.optimizer = tf.train.AdamOptimizer(learning_rate=c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')#tf.train.AdamOptimizer(learning_rate=c.LRATE_D, name='optimizer')#tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer')
+                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=c.LRATE_D, name='optimizer')
+
+                self.train_op = self.optimizer.minimize(self.d_loss,
                                                         global_step=self.global_step,
                                                         name='train_op')
+                self.theta_c = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
+
+
+                self.cc = []
+                for item in self.theta_c:
+                    if re.search('Weight_block',item.name) is not None:
+                        self.cc.append(item)
+
+                
+                clipped_var_c = [tf.assign(var, tf.clip_by_value(var, c.WGAN_CLAMP_LOWER, c.WGAN_CLAMP_UPPER)) for var in self.cc]
+                with tf.control_dependencies([self.train_op]):
+                    self.train_op = tf.tuple(clipped_var_c)
 
                 # add summaries to visualize in TensorBoard
-                loss_summary = tf.scalar_summary('loss_D', self.global_loss)
+                loss_summary = tf.scalar_summary('loss_D', self.d_loss)
                 self.summaries = tf.merge_summary([loss_summary])
 
-                # For teacher-forcing
-                # self.global_loss_scale = adv_loss(self.scale_preds, self.labels)[1]
-                # self.global_loss_scale = tf.unpack(self.global_loss_scale)
-                
-                # loss_num = len(self.global_loss_scale)
-                # for i in xrange(loss_num):
-                #     self.optimizer_scale.append(tf.train.GradientDescentOptimizer(c.LRATE_D, name='optimizer'))
-                #     self.step_T.append(tf.Variable(0, trainable=False))
-
-                # for i in xrange(loss_num):
-                #     self.train_op_scale.append( self.optimizer_scale[i].minimize(self.global_loss_scale[i],
-                #                                                         global_step=self.step_T[i],
-                #                                                         name='train_op'))
-                #     d_loss_summary = tf.scalar_summary('train_loss_D'+str(i), self.global_loss_scale[i])
-                #     self.summaries_train.append(d_loss_summary)
-                # self.summaries = tf.merge_summary(self.summaries_train)
-                # self.global_step = self.step_T[0]+self.step_NonT
 
     def build_feed_dict(self, input_frames, gt_output_frames, generator):
         """
@@ -144,14 +160,17 @@ class DiscriminatorModel:
                        generator.teacher_forcing: self.teach,
                        generator.bn_mode: False}
                        #generator.convKeepProb: 1.0}
-
         g_scale_preds = self.sess.run(generator.scale_preds_train, feed_dict=g_feed_dict)
+
+
+        
 
         ##
         # Create discriminator feed dict
         ##
         for scale_num in xrange(self.num_scale_nets):
             scale_net = self.scale_nets[scale_num]
+            scale_net_real = self.scale_nets_real[scale_num]
             scale_factor = 1. / 2 ** ((self.num_scale_nets - 1) - scale_num)
             # resize gt_output_frames
             scaled_gt_output_frames = np.empty([batch_size, scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.PRED_LEN])
@@ -171,7 +190,7 @@ class DiscriminatorModel:
                 resized_frame = resize(sknorm_img, [scale_net.height, scale_net.width, c.NUM_INPUT_CHANNEL*c.HIST_LEN])
                 scaled_hist_frames[i] = (resized_frame - 0.5) * 2
             scaled_hist_frames = video_downsample(scaled_hist_frames,1/scale_factor)
-
+            
             # combine with resized gt_output_frames to get inputs for prediction
             if c.CONSIDER_PAST_FRAMES == 1:
                 scaled_all_frames_g = np.concatenate([scaled_hist_frames, g_scale_preds[scale_num]],axis=3)
@@ -182,15 +201,18 @@ class DiscriminatorModel:
                                                       scaled_gt_output_frames])
 
             # convert to np array and add to feed_dict
-            feed_dict[scale_net.input_frames] = scaled_input_frames
+            feed_dict[scale_net.input_frames] = scaled_all_frames_g
             feed_dict[scale_net.fcKeepProb] = c.FC_KEEPPROB
             feed_dict[scale_net.convKeepProb] = c.CONV_KEEPPROB
             feed_dict[scale_net.bn_mode] = True
 
+            feed_dict[scale_net_real.input_frames] = scaled_all_frames_gt
+            feed_dict[scale_net_real.fcKeepProb] = c.FC_KEEPPROB
+            feed_dict[scale_net_real.convKeepProb] = c.CONV_KEEPPROB
+            feed_dict[scale_net_real.bn_mode] = True
+
+
         # add labels for each image to feed_dict
-        batch_size = np.shape(input_frames)[0]
-        feed_dict[self.labels] = np.concatenate([np.zeros([batch_size, 1]),
-                                                 np.ones([batch_size, 1])])
 
         return feed_dict
 
@@ -228,15 +250,27 @@ class DiscriminatorModel:
         # Train
         ##
 
-        feed_dict = self.build_feed_dict(input_frames, gt_output_frames, generator)
-        
-        # if c.TEACTHER_FORCE == 0:
-        _, global_loss, global_step, summaries = self.sess.run(
-            [self.train_op, self.global_loss, self.global_step, self.summaries],
-            feed_dict=feed_dict)
+        global_step = self.sess.run(self.global_step)
+        # if global_step < 2500 or global_step % 500 == 0:
+        #     citers = 100
         # else:
-        #     _, global_loss_scale, global_step, summaries = self.sess.run(
-        #         [self.train_op_scale, self.global_loss_scale, self.global_step, self.summaries],
+        #     citers = c.WGAN_CITERS
+        citers = c.WGAN_CITERS
+        for _ in xrange(citers):
+            feed_dict = self.build_feed_dict(input_frames, gt_output_frames, generator)
+            
+            # if c.TEACTHER_FORCE == 0:
+            _, d_loss, global_step, summaries = self.sess.run(
+                [self.train_op, self.d_loss, self.global_step, self.summaries],
+                feed_dict=feed_dict)
+
+            
+            #fake,real = self.sess.run([self.scale_preds,self.scale_preds_real],feed_dict=feed_dict) 
+
+
+        # else:
+        #     _, d_loss_scale, global_step, summaries = self.sess.run(
+        #         [self.train_op_scale, self.d_loss_scale, self.global_step, self.summaries],
         #         feed_dict=feed_dict)
 
         ##
@@ -244,7 +278,7 @@ class DiscriminatorModel:
         ##
 
         if global_step % c.STATS_FREQ == 0:
-            print 'DiscriminatorModel: step %d | global loss: %f' % (global_step, global_loss)
+            print 'DiscriminatorModel: step %d | global loss: %f' % (global_step, d_loss)
         if global_step % c.SUMMARY_FREQ == 0:
             print 'DiscriminatorModel: saved summaries'
             self.summary_writer.add_summary(summaries, global_step)

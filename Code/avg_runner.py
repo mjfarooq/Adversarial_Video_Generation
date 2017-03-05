@@ -5,8 +5,13 @@ import os
 
 from utils import get_train_batch, get_test_batch
 import constants as c
-from g_model import GeneratorModel
-from d_model import DiscriminatorModel
+if c.WGAN:
+    from g_model_WGAN import GeneratorModel
+    from d_model_WGAN import DiscriminatorModel
+else:
+    from g_model import GeneratorModel
+    from d_model import DiscriminatorModel
+import numpy as np
 
 
 class AVGRunner:
@@ -66,19 +71,24 @@ class AVGRunner:
         """
         Runs a training loop on the model networks.
         """
+
         while True:
+            Teach_Prob = np.maximum(0,1-float(self.global_step)/65000)
+            teach = np.random.binomial(1,Teach_Prob)*c.TEACTHER_FORCE
+
             if c.ADVERSARIAL:
                 # update discriminator
                 
                 batch = get_train_batch(c.BATCH_SIZE,c.PRED_LEN)
                 print 'Training discriminator...'
-                self.d_model.train_step(batch, self.g_model)
+
+                self.d_model.train_step(batch, self.g_model,teach = teach)
 
             # update generator
             batch = get_train_batch(c.BATCH_SIZE,c.PRED_LEN)
             print 'Training generator...'
             self.global_step = self.g_model.train_step(
-                batch, discriminator=(self.d_model if c.ADVERSARIAL else None))
+                batch, discriminator=(self.d_model if c.ADVERSARIAL else None), teach = teach)
 
             # save the models
             if self.global_step % c.MODEL_SAVE_FREQ == 0:
@@ -98,9 +108,10 @@ class AVGRunner:
         """
         Runs one test step on the generator network.
         """
-        batch = get_test_batch(c.BATCH_SIZE, num_rec_out=self.num_test_rec)
-        self.g_model.test_batch(
-            batch, self.global_step, num_rec_out=self.num_test_rec)
+        for i in xrange(0,c.TEST_INDEX.shape[0],16):
+            batch = get_test_batch(c.BATCH_SIZE, num_rec_out=self.num_test_rec,Indexs=c.TEST_INDEX[i:i+c.BATCH_SIZE])
+            self.g_model.test_batch(
+                batch, self.global_step, num_rec_out=self.num_test_rec, IndOffset = i, discriminator=(self.d_model if c.ADVERSARIAL else None))
 
 
 def usage():
@@ -140,8 +151,10 @@ def main():
 
 
     for opt, arg in opts:
+
         if opt in ('-l', '--load_path'):
             load_path = arg
+            c.set_save_name(arg,load=True)
         if opt in ('-t', '--test_dir'):
             c.set_test_dir(arg)
         if opt in ('-r', '--recursions'):

@@ -4,7 +4,7 @@ import numpy as np
 from tfutils import log10
 import constants as c
 
-def combined_loss(gen_frames, gt_frames, d_preds, lam_adv=1, lam_lp=1, lam_gdl=1, l_num=2, alpha=2):
+def g_loss(gen_frames, gt_frames, fake_logit, lam_adv=1, lam_lp=1, lam_gdl=1, l_num=2, alpha=2):
     """
     Calculates the sum of the combined adversarial, lp and GDL losses in the given proportion. Used
     for training the generative model.
@@ -24,29 +24,30 @@ def combined_loss(gen_frames, gt_frames, d_preds, lam_adv=1, lam_lp=1, lam_gdl=1
     batch_size = tf.shape(gen_frames[0])[0]  # variable batch size as a tensor
 
     loss = lam_lp * lp_loss(gen_frames, gt_frames, l_num)[0]
-    loss += lam_gdl * gdl_loss(gen_frames, gt_frames, alpha)[0]
-    if c.ADVERSARIAL: loss += lam_adv * adv_loss(d_preds, tf.ones([batch_size, 1]))[0]
+    #loss += lam_gdl * gdl_loss(gen_frames, gt_frames, alpha)[0]
+    if c.ADVERSARIAL: loss -= lam_adv * tf.reduce_mean(tf.pack(fake_logit))
 
     scale_losses = lam_lp * lp_loss(gen_frames, gt_frames, l_num)[1]
-    scale_losses += lam_gdl * gdl_loss(gen_frames, gt_frames, alpha)[1]
-    if c.ADVERSARIAL: scale_losses += lam_adv * adv_loss(d_preds, tf.ones([batch_size, 1]))[1]
+    #scale_losses += lam_gdl * gdl_loss(gen_frames, gt_frames, alpha)[1]
+    if c.ADVERSARIAL: scale_losses -= lam_adv * tf.pack(fake_logit)
 
     return loss, scale_losses
 
-
-def bce_loss(preds, targets):
+def d_loss(fake_logit, real_logit):
     """
-    Calculates the sum of binary cross-entropy losses between predictions and ground truths.
+    Calculates the sum of BCE losses between the predicted classifications and true labels.
 
-    @param preds: A 1xN tensor. The predicted classifications of each frame.
-    @param targets: A 1xN tensor The target labels for each frame. (Either 1 or -1). Not "truths"
-                    because the generator passes in lies to determine how well it confuses the
-                    discriminator.
+    @param preds: The predicted classifications at each scale.
+    @param labels: The true labels. (Same for every scale).
 
-    @return: The sum of binary cross-entropy losses.
+    @return: The adversarial loss.
     """
-    return tf.squeeze(-1 * (tf.matmul(targets, log10(preds), transpose_a=True) +
-                            tf.matmul(1 - targets, log10(1 - preds), transpose_a=True)))
+    # calculate the loss for each scale
+
+
+    # condense into one tensor and avg
+
+    return tf.reduce_mean(tf.pack(fake_logit) - tf.pack(real_logit)), tf.pack(fake_logit) - tf.pack(real_logit)
 
 
 def lp_loss(gen_frames, gt_frames, l_num):
@@ -105,20 +106,3 @@ def gdl_loss(gen_frames, gt_frames, alpha):
     return tf.reduce_mean(tf.pack(scale_losses)), tf.pack(scale_losses)
 
 
-def adv_loss(preds, labels):
-    """
-    Calculates the sum of BCE losses between the predicted classifications and true labels.
-
-    @param preds: The predicted classifications at each scale.
-    @param labels: The true labels. (Same for every scale).
-
-    @return: The adversarial loss.
-    """
-    # calculate the loss for each scale
-    scale_losses = []
-    for i in xrange(len(preds)):
-        loss = bce_loss(preds[i], labels)
-        scale_losses.append(loss)
-
-    # condense into one tensor and avg
-    return tf.reduce_mean(tf.pack(scale_losses)), tf.pack(scale_losses)

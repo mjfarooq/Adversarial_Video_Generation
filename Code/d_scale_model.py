@@ -1,6 +1,8 @@
 import tensorflow as tf
-from tfutils import w, b, conv_out_size, video_downsample, video_upsample
+from tfutils import w, b, conv_out_size, video_downsample, video_upsample, batch_norm, beta_,gamma_,pop_mean_,pop_var_
 import constants as c
+import numpy as np
+from copy import deepcopy
 
 # noinspection PyShadowingNames
 class DScaleModel:
@@ -37,7 +39,7 @@ class DScaleModel:
         self.width = width
         self.conv_layer_fms = conv_layer_fms
         self.kernel_sizes = kernel_sizes
-        self.fc_layer_sizes = fc_layer_sizes
+        self.fc_layer_sizes = fc_layer_sizes[:]
 
         self.define_graph()
 
@@ -55,6 +57,7 @@ class DScaleModel:
                 tf.float32, shape=[None, self.height, self.width, self.conv_layer_fms[0]])
             self.fcKeepProb = tf.placeholder(tf.float32)
             self.convKeepProb = tf.placeholder(tf.float32)
+            self.bn_mode = tf.placeholder(tf.bool) # true: training , false:testing
             # use variable batch_size for more flexibility
             self.batch_size = tf.shape(self.input_frames)[0]
         ##
@@ -66,14 +69,29 @@ class DScaleModel:
             with tf.name_scope('convolutions'):
                 conv_ws = []
                 conv_bs = []
+                conv_betas = []
+                conv_gammas = []
+                conv_pop_means =[]
+                conv_pop_vars=[]
+
                 last_out_height = self.height
                 last_out_width = self.width
                 for i in xrange(len(self.kernel_sizes)):
                     conv_ws.append(w([self.kernel_sizes[i],
                                       self.kernel_sizes[i],
                                       self.conv_layer_fms[i],
-                                      self.conv_layer_fms[i + 1]]))
-                    conv_bs.append(b([self.conv_layer_fms[i + 1]]))
+                                      self.conv_layer_fms[i + 1]],
+                                      scope = 'convlayer_' + str(i)))
+                    conv_bs.append(b([self.conv_layer_fms[i + 1]],
+                                      scope = 'convlayer_' + str(i)))
+                    conv_betas.append(beta_([self.conv_layer_fms[i + 1]],
+                                 scope = 'convlayer_' + str(i)))
+                    conv_gammas.append(gamma_([self.conv_layer_fms[i + 1]],
+                                 scope = 'convlayer_' + str(i)))
+                    conv_pop_means.append(pop_mean_([self.conv_layer_fms[i + 1]],
+                                 scope = 'convlayer_' + str(i)))
+                    conv_pop_vars.append(pop_var_([self.conv_layer_fms[i + 1]],
+                                 scope = 'convlayer_' + str(i)))
 
                     last_out_height = conv_out_size(
                         last_out_height, c.PADDING_D, self.kernel_sizes[i], 1)
@@ -89,10 +107,25 @@ class DScaleModel:
 
                 fc_ws = []
                 fc_bs = []
+                fc_betas = []
+                fc_gammas = []
+                fc_pop_means =[]
+                fc_pop_vars=[]
                 for i in xrange(len(self.fc_layer_sizes) - 1):
                     fc_ws.append(w([self.fc_layer_sizes[i],
-                                    self.fc_layer_sizes[i + 1]]))
-                    fc_bs.append(b([self.fc_layer_sizes[i + 1]]))
+                                    self.fc_layer_sizes[i + 1]],
+                                    scope = 'fclayer_' + str(i)))
+                    fc_bs.append(b([self.fc_layer_sizes[i + 1]],
+                                    scope = 'fclayer_' + str(i)))
+                    fc_betas.append(beta_([self.fc_layer_sizes[i + 1]],
+                                 scope = 'fclayer_' + str(i)))
+                    fc_gammas.append(gamma_([self.fc_layer_sizes[i + 1]],
+                                 scope = 'fclayer_' + str(i)))
+                    fc_pop_means.append(pop_mean_([self.fc_layer_sizes[i + 1]],
+                                 scope = 'fclayer_' + str(i)))
+                    fc_pop_vars.append(pop_var_([self.fc_layer_sizes[i + 1]],
+                                 scope = 'fclayer_' + str(i)))
+
 
         ##
         # Forward pass calculation
@@ -122,6 +155,9 @@ class DScaleModel:
                         
                         preds = tf.nn.conv2d(
                             last_input, conv_ws[i], [1, 1, 1, 1], padding=c.PADDING_D)
+                        if c.BATCH_NORM:
+                            preds = batch_norm(preds,conv_betas[i],conv_gammas[i],conv_pop_means[i],conv_pop_vars[i],
+                                                self.bn_mode)
                         preds = tf.nn.relu(preds + conv_bs[i])
                         preds = tf.nn.dropout(preds,self.convKeepProb)
                         last_input = preds
@@ -134,22 +170,27 @@ class DScaleModel:
                 shape = preds.get_shape().as_list()
                 # -1 can be used as one dimension to size dynamically
                 preds = tf.reshape(preds, [-1, shape[1] * shape[2] * shape[3]])
-
                 # fully-connected layers
                 with tf.name_scope('fully-connected'):
                     for i in xrange(len(fc_ws)):
                         preds = tf.matmul(preds, fc_ws[i]) + fc_bs[i]
-
+                        if c.BATCH_NORM:
+                            preds = batch_norm(preds,fc_betas[i],fc_gammas[i],fc_pop_means[i],fc_pop_vars[i],
+                                                self.bn_mode)
                         # Activate with ReLU (or Sigmoid for last layer)
                         if i == len(fc_ws) - 1:
-                            preds = tf.sigmoid(preds)
+                            if c.WGAN:
+                                preds = preds
+                            else:
+                                preds = tf.sigmoid(preds)
                         else:
                             preds = tf.nn.relu(preds)
                             preds = tf.nn.dropout(preds,self.fcKeepProb)
 
                 # clip preds between [.1, 0.9] for stability
-                with tf.name_scope('clip'):
-                    preds = tf.clip_by_value(preds, 0.1, 0.9)
+                if c.WGAN is not True:
+                    with tf.name_scope('clip'):
+                        preds = tf.clip_by_value(preds, 0.1, 0.9)
 
                 return preds
 
